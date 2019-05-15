@@ -1,0 +1,33 @@
+[package]
+name = "rspten"
+version = "0.1.0"
+authors = ["Andrew Yourtchenko <ayourtch@gmail.com>"]
+
+[dependencies]
+req2struct = { git = "https://github.com/ayourtch/req2struct.git" }
+
+iron = "*"
+persistent = "*"
+regex = "*"
+lazy_static = "*"
+mustache = "*"
+iron-sessionstorage = { git = "https://github.com/ayourtch/iron-sessionstorage.git" }
+diesel = { version = "1.1.*", features = ["postgres", "sqlite", "huge-tables", "chrono"] }
+chrono = { version = "*", features = ["serde"] }
+serde_json = "*"
+serde = "*"
+serde_derive = "*"
+arrayref = "*"
+base64 = "*"
+rand = "0.6"
+urlencoded = "*"
+router = "*"
+mount = "*"
+staticfile = "*"
+params = "*"
+r2d2 = "*"
+r2d2-diesel = "*"
+num_cpus = "*"
+
+
+
