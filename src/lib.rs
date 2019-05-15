@@ -37,7 +37,7 @@ use iron_sessionstorage::backends::SignedCookieBackend;
 use iron_sessionstorage::SessionStorage;
 
 use iron::Handler;
-use std::cell::RefCell;
+// use std::cell::RefCell;
 use std::collections::HashMap;
 
 use mustache::MapBuilder;
@@ -187,24 +187,24 @@ pub fn req_get_event(req: &mut Request) -> RspEvent {
             }
             match hashmap.get("event") {
                 Some(a) => {
-                    event = a[0].clone().into();
+                    event = a[0].clone();
                 }
                 _ => {}
             }
             match hashmap.get("event_target") {
                 Some(a) => {
-                    target = a[0].clone().into();
+                    target = a[0].clone();
                 }
                 _ => {}
             }
             if &event == "unknown" && &target == "" {
                 println!("post hashmap: {:?}", &hashmap);
-                match hashmap.keys().into_iter().find(|x| x.starts_with("submit")) {
+                match hashmap.keys().find(|x| x.starts_with("submit")) {
                     Some(a) => {
                         event = "submit".into();
                         target = a["submit".len()..].into();
                     }
-                    _ => match hashmap.keys().into_iter().find(|x| x.starts_with("btn")) {
+                    _ => match hashmap.keys().find(|x| x.starts_with("btn")) {
                         Some(a) => {
                             event = "submit".into();
                             target = a.clone();
@@ -220,8 +220,8 @@ pub fn req_get_event(req: &mut Request) -> RspEvent {
         }
     };
     let retev = RspEvent {
-        event: event,
-        target: target,
+        event,
+        target,
     };
     println!("Event: {:?}", &retev);
     retev
@@ -241,10 +241,6 @@ pub struct RspPage<T, S: RspState<T>> {
 
 */
 
-fn req_get_state_string(req: &mut Request) -> String {
-    req_get_post_argument(req, "state")
-}
-
 fn req_get_initial_state_string(req: &mut Request) -> String {
     req_get_post_argument(req, "initial_state")
 }
@@ -255,7 +251,7 @@ fn req_get_post_argument(req: &mut Request, argname: &str) -> String {
         Ok(ref hashmap) => {
             // println!("Parsed POST request body:\n {:?}", &hashmap);
             match hashmap.get(argname) {
-                Some(a) => format!("{}", a[0]),
+                Some(a) => a[0].to_string(),
                 _ => String::new(),
             }
         }
@@ -264,7 +260,7 @@ fn req_get_post_argument(req: &mut Request, argname: &str) -> String {
             String::new()
         }
     };
-    return arg_state_string;
+    arg_state_string
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -318,10 +314,10 @@ fn http_redirect(redirect_to: &str) -> IronResult<Response> {
     use iron::headers::ContentType;
     use iron::headers::Location;
     // let mut resp = Response::with((status::TemporaryRedirect, $redirect_to.clone()));
-    let mut resp = Response::with((status::Found, redirect_to.clone()));
+    let mut resp = Response::with((status::Found, redirect_to));
     resp.headers.set(ContentType::html());
     resp.headers.set(Location(redirect_to.to_string()));
-    return Ok(resp);
+    Ok(resp)
 }
 
 pub trait RspStateName {
@@ -361,31 +357,31 @@ where
     ) -> RspAction<T>;
 
     fn fill_data(
-        auth: &TA,
-        data: MapBuilder,
-        ev: &RspEvent,
-        curr_key: &T,
-        state: &mut Self,
-        initial_state: &Self,
-        curr_initial_state: &Self,
+        _auth: &TA,
+        _data: MapBuilder,
+        _ev: &RspEvent,
+        _curr_key: &T,
+        _state: &mut Self,
+        _initial_state: &Self,
+        _curr_initial_state: &Self,
     ) -> MapBuilder {
-        data
+        _data
     }
 
     fn handler(req: &mut Request) -> IronResult<Response> {
         let auth_res = TA::from_request(req);
         match auth_res {
             Err(login_url) => {
-                return http_redirect(&login_url);
+                http_redirect(&login_url)
             }
             Ok(auth) => {
-                return Self::auth_handler(req, auth);
+                Self::auth_handler(req, auth)
             }
         }
     }
 
     fn auth_handler(req: &mut Request, auth: TA) -> IronResult<Response> {
-        use iron::headers::ContentType;
+        // use iron::headers::ContentType;
         use urlencoded::{UrlEncodedBody, UrlEncodedQuery};
 
         let mut redirect_to = "".to_string();
@@ -402,9 +398,6 @@ where
                 }
             };
         println!("form_state_res: {:#?}", &form_state_res);
-
-        /* let maybe_res: Result<Self, serde_json::Error> =
-        serde_json::from_str(&req_get_state_string(req)); */
 
         let mut maybe_state = match form_state_res {
             Ok(s) => Some(s),
@@ -491,9 +484,9 @@ where
                 .unwrap();
 
             let resp = build_response(template, data);
-            return Ok(resp);
+            Ok(resp)
         } else {
-            return http_redirect(&redirect_to);
+            http_redirect(&redirect_to)
         }
     }
 }
@@ -539,7 +532,7 @@ fn run_http_server<H: Handler>(service_name: &str, port: u16, handler: H) {
         write: Some(Duration::from_secs(10)),
     };
 
-    let bind_ip = env::var("BIND_IP").unwrap_or("127.0.0.1".to_string());
+    let bind_ip = env::var("BIND_IP").unwrap_or_else(|_| "127.0.0.1".to_string());
     println!(
         "HTTP server for {} starting on {}:{}",
         service_name, &bind_ip, port

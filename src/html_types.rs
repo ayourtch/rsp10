@@ -54,7 +54,7 @@ where
     pub fn item(self: &mut HtmlSelect<T>, user_label: &str, value: T) {
         let i = HtmlSelectItem::<T> {
             user_label: user_label.into(),
-            value: value.into(),
+            value,
             selected: false,
             i: self.items.len(),
         };
@@ -75,7 +75,7 @@ where
             // println!("Item: {:?}", &item);
         }
         if !found {
-            if self.items.len() > 0 {
+            if !self.items.is_empty() {
                 self.items[0].selected = true;
                 *selected_value = self.items[0].value.clone();
                 self.selected_value = selected_value.clone();
