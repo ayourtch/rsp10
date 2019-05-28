@@ -491,11 +491,19 @@ where
     }
 }
 
-pub struct RspServer {}
+pub struct RspServer {
+    default_secret: Option<Vec<u8>>,
+}
 
 impl RspServer {
     pub fn new() -> RspServer {
-        RspServer {}
+        RspServer {
+            default_secret: None,
+        }
+    }
+
+    pub fn set_secret(&mut self, new_secret: Vec<u8>) {
+        self.default_secret = Some(new_secret);
     }
 
     pub fn run(&mut self, router: Router, service_name: &str, port: u16) {
@@ -512,7 +520,7 @@ impl RspServer {
         mount.mount("/", router);
         mount.mount("/static/", Static::new(Path::new("staticfiles/")));
 
-        let my_secret = rand_bytes();
+        let my_secret = self.default_secret.clone().unwrap_or(rand_bytes());
         let mut ch = Chain::new(mount);
         ch.link_around(SessionStorage::new(SignedCookieBackend::new(my_secret)));
 
