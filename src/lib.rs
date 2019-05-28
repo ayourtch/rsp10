@@ -20,8 +20,8 @@ extern crate diesel;
 
 #[macro_use]
 extern crate serde_derive;
-extern crate serde;
 extern crate req2struct;
+extern crate serde;
 extern crate serde_json;
 
 // #[macro_use]
@@ -219,10 +219,7 @@ pub fn req_get_event(req: &mut Request) -> RspEvent {
             println!("req_get_event err: {:?}", e);
         }
     };
-    let retev = RspEvent {
-        event,
-        target,
-    };
+    let retev = RspEvent { event, target };
     println!("Event: {:?}", &retev);
     retev
 }
@@ -371,12 +368,8 @@ where
     fn handler(req: &mut Request) -> IronResult<Response> {
         let auth_res = TA::from_request(req);
         match auth_res {
-            Err(login_url) => {
-                http_redirect(&login_url)
-            }
-            Ok(auth) => {
-                Self::auth_handler(req, auth)
-            }
+            Err(login_url) => http_redirect(&login_url),
+            Ok(auth) => Self::auth_handler(req, auth),
         }
     }
 
@@ -386,17 +379,17 @@ where
 
         let mut redirect_to = "".to_string();
         let mut reload_state = false;
-        let form_state_res: Result<Self, req2struct::Error> =
-            match req.get_ref::<UrlEncodedBody>() {
-                Ok(ref hashmap) => {
-                    let res: Result<Self, _> = req2struct::from_map(&hashmap);
-                    res
-                }
-                _ => {
-                    let hm: HashMap<String, Vec<String>> = HashMap::new();
-                    req2struct::from_map(&hm)
-                }
-            };
+        let form_state_res: Result<Self, req2struct::Error> = match req.get_ref::<UrlEncodedBody>()
+        {
+            Ok(ref hashmap) => {
+                let res: Result<Self, _> = req2struct::from_map(&hashmap);
+                res
+            }
+            _ => {
+                let hm: HashMap<String, Vec<String>> = HashMap::new();
+                req2struct::from_map(&hm)
+            }
+        };
         println!("form_state_res: {:#?}", &form_state_res);
 
         let mut maybe_state = match form_state_res {
@@ -508,9 +501,9 @@ impl RspServer {
 
     pub fn run(&mut self, router: Router, service_name: &str, port: u16) {
         use mount::Mount;
+        use rand::random;
         use staticfile::Static;
         use std::path::Path;
-        use rand::random;
 
         fn rand_bytes() -> Vec<u8> {
             (0..64).map(|_| random::<u8>()).collect()
