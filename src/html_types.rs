@@ -1,3 +1,88 @@
+use serde::Serialize;
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::string::ToString;
+
+#[derive(Debug, Clone)]
+pub struct HtmlForm {
+    list: Vec<Rc<RefCell<HtmlInput>>>,
+}
+
+impl HtmlForm {
+    pub fn new() -> Self {
+        Self { list: Vec::new() }
+    }
+
+    pub fn push<S: HtmlInput + Debug + 'static>(&mut self, input: Rc<RefCell<S>>) {
+        self.list.push(input.clone());
+    }
+    /*
+    pub fn mustache_render(&self, data: mustache::MapBuilder) -> mustache::MapBuilder {
+        let mut data = data;
+        for elt in &self.list {
+            println!("elt: {:?}", &elt);
+            data = elt.borrow().mustache_render(data);
+        }
+        data
+    }
+    */
+}
+
+#[derive(Debug, Clone)]
+pub struct HtmlFormVector {
+    pub name: String,
+    pub forms: Vec<HtmlForm>,
+}
+
+impl HtmlFormVector {
+    pub fn new(a_name: &str) -> Self {
+        Self {
+            name: a_name.to_string(),
+            forms: vec![],
+        }
+    }
+}
+
+impl HtmlInput for HtmlFormVector {
+    fn mustache_render(&self, data: mustache::MapBuilder) -> mustache::MapBuilder {
+        let mut data = data;
+        data = data.insert_vec(format!("{}", self.name), |mut vdata| {
+            for (i, ref aform) in self.forms.iter().enumerate() {
+                vdata = vdata.push_map(|mut data| {
+                    data = aform.mustache_render(data);
+                    data
+                });
+            }
+            vdata
+        });
+
+        data
+    }
+}
+
+pub trait HtmlInput: Debug {
+    fn get_sid(&self, id: &str) -> String {
+        let name_vec: Vec<&str> = id.split("__").collect();
+        if name_vec.len() == 1 {
+            format!("{}", id)
+        } else {
+            format!("{}", name_vec[2])
+        }
+    }
+    fn mustache_render(&self, data: mustache::MapBuilder) -> mustache::MapBuilder;
+}
+
+impl HtmlInput for HtmlForm {
+    fn mustache_render(&self, data: mustache::MapBuilder) -> mustache::MapBuilder {
+        let mut data = data;
+        for elt in &self.list {
+            // println!("elt: {:?}", &elt);
+            data = elt.borrow().mustache_render(data);
+        }
+        data
+    }
+}
+
 #[derive(Default, Serialize, Deserialize, Debug, Clone)]
 pub struct HtmlText {
     pub id: String,
@@ -6,6 +91,12 @@ pub struct HtmlText {
     pub highlight: bool,
     pub hidden: bool,
     pub disabled: bool,
+}
+
+impl HtmlInput for HtmlText {
+    fn mustache_render(&self, data: mustache::MapBuilder) -> mustache::MapBuilder {
+        data.insert(self.get_sid(&self.id), &self).unwrap()
+    }
 }
 
 #[derive(Default, Serialize, Deserialize, Debug, Clone)]
@@ -18,6 +109,12 @@ pub struct HtmlButton {
     pub disabled: bool,
 }
 
+impl HtmlInput for HtmlButton {
+    fn mustache_render(&self, data: mustache::MapBuilder) -> mustache::MapBuilder {
+        data.insert(self.get_sid(&self.id), &self).unwrap()
+    }
+}
+
 #[derive(Default, Serialize, Deserialize, Debug, Clone)]
 pub struct HtmlCheck {
     pub id: String,
@@ -28,17 +125,33 @@ pub struct HtmlCheck {
     pub disabled: bool,
 }
 
+impl HtmlInput for HtmlCheck {
+    fn mustache_render(&self, data: mustache::MapBuilder) -> mustache::MapBuilder {
+        data.insert(self.get_sid(&self.id), &self).unwrap()
+    }
+}
+
 #[derive(Default, Serialize, Deserialize, Debug, Clone)]
-pub struct HtmlSelectItem<T> {
+pub struct HtmlSelectItem<T: PartialEq + Clone + Debug + ToString + Serialize> {
     pub i: usize,
     pub user_label: String,
     pub value: T,
     pub selected: bool,
 }
 
+impl<T> HtmlInput for HtmlSelectItem<T>
+where
+    T: PartialEq + Clone + Debug + ToString + Serialize,
+{
+    fn mustache_render(&self, data: mustache::MapBuilder) -> mustache::MapBuilder {
+        let data = data.insert("item_number".to_string(), &self.i).unwrap();
+        data.insert(format!("id_{}", self.i), &self).unwrap()
+    }
+}
+
 use std::fmt::Debug;
 #[derive(Default, Serialize, Deserialize, Debug, Clone)]
-pub struct HtmlSelect<T: PartialEq + Clone + Debug> {
+pub struct HtmlSelect<T: PartialEq + Clone + Debug + ToString + Serialize> {
     pub id: String,
     pub items: Vec<HtmlSelectItem<T>>,
     pub selected_value: T,
@@ -47,9 +160,18 @@ pub struct HtmlSelect<T: PartialEq + Clone + Debug> {
     pub disabled: bool,
 }
 
+impl<T> HtmlInput for HtmlSelect<T>
+where
+    T: PartialEq + Clone + Debug + ToString + Serialize,
+{
+    fn mustache_render(&self, data: mustache::MapBuilder) -> mustache::MapBuilder {
+        data.insert(self.get_sid(&self.id), &self).unwrap()
+    }
+}
+
 impl<T> HtmlSelect<T>
 where
-    T: std::cmp::PartialEq + std::clone::Clone + Debug,
+    T: std::cmp::PartialEq + std::clone::Clone + Debug + ToString + Serialize,
 {
     pub fn item(self: &mut HtmlSelect<T>, user_label: &str, value: T) {
         let i = HtmlSelectItem::<T> {

@@ -50,7 +50,7 @@ pub use html_types::*;
 #[macro_export]
 macro_rules! html_select {
     ( $gd: ident, $elt: ident, $from: expr , $state: ident, $default_state: ident, $modified: ident) => {
-        let mut $elt = std::cell::RefCell::new($from.clone());
+        let mut $elt = std::rc::Rc::new(std::cell::RefCell::new($from.clone()));
         {
             let mut $elt = $elt.borrow_mut();
             $elt.set_selected_value(&mut $state.$elt);
@@ -58,25 +58,30 @@ macro_rules! html_select {
             $elt.id = format!("{}", stringify!($elt));
             $modified = $modified || $elt.highlight;
         }
-        let $gd = || $gd().insert(stringify!($elt), &$elt).unwrap();
+        // let $gd = || $gd().insert(stringify!($elt), &$elt).unwrap();
+        $gd.push($elt.clone());
     };
 }
 
 #[macro_export]
 macro_rules! html_nested_select {
-    ( $parent: ident, $idx: ident, $elt: ident, $from: expr , $state: ident, $default_state: ident, $modified: ident) => {
-        let mut $elt = $from;
-        $elt.set_selected_value(&mut $state.$parent[$idx].$elt);
-        $elt.highlight = $state.$parent[$idx].$elt != $default_state.$parent[$idx].$elt;
-        $elt.id = format!("{}__{}__{}", stringify!($parent), $idx, stringify!($elt));
-        $modified = $modified || $elt.highlight;
+    ( $gd: ident, $parent: ident, $idx: expr, $elt: ident, $from: expr , $state: ident, $default_state: ident, $modified: ident) => {
+        let mut $elt = std::rc::Rc::new(std::cell::RefCell::new($from.clone()));
+        {
+            let mut $elt = $elt.borrow_mut();
+            $elt.set_selected_value(&mut $state.$parent[$idx].$elt);
+            $elt.highlight = $state.$parent[$idx].$elt != $default_state.$parent[$idx].$elt;
+            $elt.id = format!("{}__{}__{}", stringify!($parent), $idx, stringify!($elt));
+            $modified = $modified || $elt.highlight;
+        }
+        $gd.push($elt.clone());
     };
 }
 
 #[macro_export]
 macro_rules! html_text {
     ($gd: ident, $elt: ident, $state: ident, $default_state: ident, $modified: ident) => {
-        let mut $elt: std::cell::RefCell<HtmlText> = std::cell::RefCell::new(Default::default());
+        let mut $elt: std::rc::Rc<std::cell::RefCell<HtmlText>> = std::rc::Rc::new(std::cell::RefCell::new(Default::default()));
         {
             let mut $elt = $elt.borrow_mut();
             $elt.highlight = $state.$elt != $default_state.$elt;
@@ -85,20 +90,22 @@ macro_rules! html_text {
             $modified = $modified || $elt.highlight;
         }
 
-        let $gd = || $gd().insert(stringify!($elt), &$elt).unwrap();
+        // let $gd = || $gd().insert(stringify!($elt), &$elt).unwrap();
+        $gd.push($elt.clone());
     };
 }
 
 #[macro_export]
 macro_rules! html_button {
     ($gd: ident, $elt: ident, $label: expr) => {
-        let mut $elt: std::cell::RefCell<HtmlButton> = std::cell::RefCell::new(Default::default());
+        let mut $elt: std::rc::Rc<std::cell::RefCell<HtmlButton>> = std::rc::Rc::new(std::cell::RefCell::new(Default::default()));
         {
             let mut $elt = $elt.borrow_mut();
             $elt.id = format!("{}", stringify!($elt));
             $elt.value = $label.into();
         }
-        let $gd = || $gd().insert(stringify!($elt), &$elt).unwrap();
+        // let $gd = || $gd().insert(stringify!($elt), &$elt).unwrap();
+        $gd.push($elt.clone());
     };
 }
 
@@ -136,7 +143,7 @@ macro_rules! html_nested_text {
 #[macro_export]
 macro_rules! html_check {
     ( $gd: ident, $elt: ident, $state: ident, $default_state: ident, $modified: ident) => {
-        let mut $elt: std::cell::RefCell<HtmlCheck> = std::cell::RefCell::new(Default::default());
+        let mut $elt: std::rc::Rc<std::cell::RefCell<HtmlCheck>> = std::rc::Rc::new(std::cell::RefCell::new(Default::default()));
         {
             let mut $elt = $elt.borrow_mut();
             $elt.highlight = $state.$elt != $default_state.$elt;
@@ -144,18 +151,23 @@ macro_rules! html_check {
             $elt.id = format!("{}", stringify!($elt));
             $elt.checked = $state.$elt;
         }
-        let $gd = || $gd().insert(stringify!($elt), &$elt).unwrap();
+        // let $gd = || $gd().insert(stringify!($elt), &$elt).unwrap();
+        $gd.push($elt.clone());
     };
 }
 
 #[macro_export]
 macro_rules! html_nested_check {
-    ( $parent: ident, $idx: ident, $elt: ident, $state: ident, $default_state: ident, $modified: ident) => {
-        let mut $elt: HtmlCheck = Default::default();
-        $elt.highlight = $state.$parent[$idx].$elt != $default_state.$parent[$idx].$elt;
-        $modified = $modified || $elt.highlight;
-        $elt.id = format!("{}__{}__{}", stringify!($parent), $idx, stringify!($elt));
-        $elt.checked = $state.$parent[$idx].$elt;
+    ( $gd: ident, $parent: ident, $idx: expr, $elt: ident, $state: ident, $default_state: ident, $modified: ident) => {
+        let mut $elt: std::rc::Rc<std::cell::RefCell<HtmlCheck>> = std::rc::Rc::new(std::cell::RefCell::new(Default::default()));
+        {
+            let mut $elt = $elt.borrow_mut();
+            $elt.highlight = $state.$parent[$idx].$elt != $default_state.$parent[$idx].$elt;
+            $modified = $modified || $elt.highlight;
+            $elt.id = format!("{}__{}__{}", stringify!($parent), $idx, stringify!($elt));
+            $elt.checked = $state.$parent[$idx].$elt;
+        }
+        $gd.push($elt.clone());
     };
 }
 
