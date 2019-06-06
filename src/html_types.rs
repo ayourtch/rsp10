@@ -96,9 +96,9 @@ pub struct HtmlText {
 impl HtmlInput for HtmlText {
     fn mustache_render(&self, data: mustache::MapBuilder) -> mustache::MapBuilder {
         let mut data = data.insert(self.get_sid(&self.id), &self).unwrap();
-        if self.value == "false".to_string() {
+        if self.value != "false".to_string() && self.value != "0".to_string() {
             // if it looks like a false, insert a boolean
-            data = data.insert(format!("{}.value", self.get_sid(&self.id)), &false).unwrap();
+            data = data.insert(format!("{}.is_true", self.get_sid(&self.id)), &self.value).unwrap();
         }
         data
     }
