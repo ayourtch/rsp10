@@ -98,7 +98,7 @@ impl HtmlInput for HtmlText {
         let mut data = data.insert(self.get_sid(&self.id), &self).unwrap();
         if self.value != "false".to_string() && self.value != "0".to_string() {
             // if it looks like a false, insert a boolean
-            data = data.insert(format!("{}.is_true", self.get_sid(&self.id)), &self.value).unwrap();
+            data = data.insert(format!("{}_is_true", self.get_sid(&self.id)), &self.value).unwrap();
         }
         data
     }
