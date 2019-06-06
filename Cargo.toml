@@ -4,8 +4,8 @@ version = "0.1.0"
 authors = ["Andrew Yourtchenko <ayourtch@gmail.com>"]
 
 [dependencies]
-# req2struct = { git = "https://github.com/ayourtch/req2struct.git" }
-req2struct = { path = "../req2struct" }
+req2struct = { git = "https://github.com/ayourtch/req2struct.git" }
+# req2struct = { path = "../req2struct" }
 
 iron = "*"
 persistent = "*"
