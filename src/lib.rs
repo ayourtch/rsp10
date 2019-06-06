@@ -97,6 +97,26 @@ macro_rules! html_text {
 }
 
 #[macro_export]
+macro_rules! html_option_text {
+    ($gd: ident, $elt: ident, $state: ident, $default_state: ident, $modified: ident) => {
+        let mut $elt: Option<std::rc::Rc<std::cell::RefCell<HtmlText>>> = 
+        if $state.$elt.is_some() {
+            let mut $elt: HtmlText = Default::default();
+            $elt.highlight = $state.$elt != $default_state.$elt;
+            $elt.value = $state.$elt.clone().unwrap().to_string();
+            $elt.id = format!("{}", stringify!($elt));
+            $modified = $modified || $elt.highlight;
+            let rc =  std::rc::Rc::new(std::cell::RefCell::new($elt));
+            $gd.push(rc.clone());
+            Some(rc)
+        } else {
+            None
+        };
+
+    };
+}
+
+#[macro_export]
 macro_rules! html_button {
     ($gd: ident, $elt: ident, $label: expr) => {
         let mut $elt: std::rc::Rc<std::cell::RefCell<HtmlButton>> =
@@ -144,6 +164,26 @@ macro_rules! html_nested_text {
             $modified = $modified || $elt.highlight;
         }
         $gd.push($elt.clone());
+    };
+}
+
+#[macro_export]
+macro_rules! html_nested_option_text {
+    ( $gd: ident, $parent: ident, $idx: expr, $elt: ident, $state: ident, $default_state: ident, $modified: ident) => {
+        let mut $elt: Option<std::rc::Rc<std::cell::RefCell<HtmlText>>> = 
+        if $state.$elt.is_some() {
+            let mut $elt: HtmlText = Default::default();
+            $elt.highlight = $state.$parent[$idx].$elt != $default_state.$parent[$idx].$elt;
+            $elt.value = $state.$parent[$idx].$elt.clone();
+            $elt.id = format!("{}__{}__{}", stringify!($parent), $idx, stringify!($elt));
+            $modified = $modified || $elt.highlight;
+            let rc =  std::rc::Rc::new(std::cell::RefCell::new($elt));
+            $gd.push(rc.clone());
+            Some(rc)
+        } else {
+            None
+        };
+
     };
 }
 
