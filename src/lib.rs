@@ -81,7 +81,8 @@ macro_rules! html_nested_select {
 #[macro_export]
 macro_rules! html_text {
     ($gd: ident, $elt: ident, $state: ident, $default_state: ident, $modified: ident) => {
-        let mut $elt: std::rc::Rc<std::cell::RefCell<HtmlText>> = std::rc::Rc::new(std::cell::RefCell::new(Default::default()));
+        let mut $elt: std::rc::Rc<std::cell::RefCell<HtmlText>> =
+            std::rc::Rc::new(std::cell::RefCell::new(Default::default()));
         {
             let mut $elt = $elt.borrow_mut();
             $elt.highlight = $state.$elt != $default_state.$elt;
@@ -98,7 +99,8 @@ macro_rules! html_text {
 #[macro_export]
 macro_rules! html_button {
     ($gd: ident, $elt: ident, $label: expr) => {
-        let mut $elt: std::rc::Rc<std::cell::RefCell<HtmlButton>> = std::rc::Rc::new(std::cell::RefCell::new(Default::default()));
+        let mut $elt: std::rc::Rc<std::cell::RefCell<HtmlButton>> =
+            std::rc::Rc::new(std::cell::RefCell::new(Default::default()));
         {
             let mut $elt = $elt.borrow_mut();
             $elt.id = format!("{}", stringify!($elt));
@@ -131,19 +133,25 @@ macro_rules! html_text_escape_backtick {
 
 #[macro_export]
 macro_rules! html_nested_text {
-    ( $parent: ident, $idx: ident, $elt: ident, $state: ident, $default_state: ident, $modified: ident) => {
-        let mut $elt: HtmlText = Default::default();
-        $elt.highlight = $state.$parent[$idx].$elt != $default_state.$parent[$idx].$elt;
-        $elt.value = $state.$parent[$idx].$elt.clone();
-        $elt.id = format!("{}__{}__{}", stringify!($parent), $idx, stringify!($elt));
-        $modified = $modified || $elt.highlight;
+    ( $gd: ident, $parent: ident, $idx: expr, $elt: ident, $state: ident, $default_state: ident, $modified: ident) => {
+        let mut $elt: std::rc::Rc<std::cell::RefCell<HtmlText>> =
+            std::rc::Rc::new(std::cell::RefCell::new(Default::default()));
+        {
+            let mut $elt = $elt.borrow_mut();
+            $elt.highlight = $state.$parent[$idx].$elt != $default_state.$parent[$idx].$elt;
+            $elt.value = $state.$parent[$idx].$elt.clone();
+            $elt.id = format!("{}__{}__{}", stringify!($parent), $idx, stringify!($elt));
+            $modified = $modified || $elt.highlight;
+        }
+        $gd.push($elt.clone());
     };
 }
 
 #[macro_export]
 macro_rules! html_check {
     ( $gd: ident, $elt: ident, $state: ident, $default_state: ident, $modified: ident) => {
-        let mut $elt: std::rc::Rc<std::cell::RefCell<HtmlCheck>> = std::rc::Rc::new(std::cell::RefCell::new(Default::default()));
+        let mut $elt: std::rc::Rc<std::cell::RefCell<HtmlCheck>> =
+            std::rc::Rc::new(std::cell::RefCell::new(Default::default()));
         {
             let mut $elt = $elt.borrow_mut();
             $elt.highlight = $state.$elt != $default_state.$elt;
@@ -159,7 +167,8 @@ macro_rules! html_check {
 #[macro_export]
 macro_rules! html_nested_check {
     ( $gd: ident, $parent: ident, $idx: expr, $elt: ident, $state: ident, $default_state: ident, $modified: ident) => {
-        let mut $elt: std::rc::Rc<std::cell::RefCell<HtmlCheck>> = std::rc::Rc::new(std::cell::RefCell::new(Default::default()));
+        let mut $elt: std::rc::Rc<std::cell::RefCell<HtmlCheck>> =
+            std::rc::Rc::new(std::cell::RefCell::new(Default::default()));
         {
             let mut $elt = $elt.borrow_mut();
             $elt.highlight = $state.$parent[$idx].$elt != $default_state.$parent[$idx].$elt;
