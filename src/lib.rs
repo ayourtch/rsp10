@@ -86,7 +86,7 @@ macro_rules! html_text {
         {
             let mut $elt = $elt.borrow_mut();
             $elt.highlight = $state.$elt != $default_state.$elt;
-            $elt.value = $state.$elt.clone().to_string();
+            $elt.value = $state.$elt.clone();
             $elt.id = format!("{}", stringify!($elt));
             $modified = $modified || $elt.highlight;
         }
@@ -139,7 +139,7 @@ macro_rules! html_nested_text {
         {
             let mut $elt = $elt.borrow_mut();
             $elt.highlight = $state.$parent[$idx].$elt != $default_state.$parent[$idx].$elt;
-            $elt.value = $state.$parent[$idx].$elt.clone().to_string();
+            $elt.value = $state.$parent[$idx].$elt.clone();
             $elt.id = format!("{}__{}__{}", stringify!($parent), $idx, stringify!($elt));
             $modified = $modified || $elt.highlight;
         }
