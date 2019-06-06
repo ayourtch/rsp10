@@ -171,10 +171,10 @@ macro_rules! html_nested_text {
 macro_rules! html_nested_option_text {
     ( $gd: ident, $parent: ident, $idx: expr, $elt: ident, $state: ident, $default_state: ident, $modified: ident) => {
         let mut $elt: Option<std::rc::Rc<std::cell::RefCell<HtmlText>>> = 
-        if $state.$elt.is_some() {
+        if $state.$parent[$idx].$elt.is_some() {
             let mut $elt: HtmlText = Default::default();
             $elt.highlight = $state.$parent[$idx].$elt != $default_state.$parent[$idx].$elt;
-            $elt.value = $state.$parent[$idx].$elt.clone();
+            $elt.value = $state.$parent[$idx].$elt.clone().unwrap().to_string();
             $elt.id = format!("{}__{}__{}", stringify!($parent), $idx, stringify!($elt));
             $modified = $modified || $elt.highlight;
             let rc =  std::rc::Rc::new(std::cell::RefCell::new($elt));
