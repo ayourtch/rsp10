@@ -156,6 +156,35 @@ where
     }
 }
 
+#[derive(Default, Serialize, Deserialize, Debug, Clone)]
+pub struct HtmlValueContainer<T: PartialEq + Clone + Debug + Serialize> {
+    pub id: String,
+    pub value: T,
+}
+
+impl<T> HtmlValueContainer<T>
+where
+    T: PartialEq + Clone + Debug + Serialize,
+{
+    pub fn new(id: &str, value: &T) -> HtmlValueContainer<T> {
+        HtmlValueContainer {
+            id: format!("{}", id),
+            value: value.clone(),
+        }
+    }
+}
+
+impl<T> HtmlInput for HtmlValueContainer<T>
+where
+    T: PartialEq + Clone + Debug + Serialize,
+{
+    fn mustache_render(&self, data: mustache::MapBuilder) -> mustache::MapBuilder {
+        let mysid = format!("{}", self.get_sid(&self.id));
+        // println!("Inserting: {} = {:#?}", &mysid, &self.value);
+        data.insert(mysid, &self.value).unwrap()
+    }
+}
+
 use std::fmt::Debug;
 #[derive(Default, Serialize, Deserialize, Debug, Clone)]
 pub struct HtmlSelect<T: PartialEq + Clone + Debug + ToString + Serialize> {

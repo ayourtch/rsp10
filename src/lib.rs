@@ -48,6 +48,37 @@ mod html_types;
 pub use html_types::*;
 
 #[macro_export]
+macro_rules! html_option_value_container {
+    ($gd: ident, $elt: ident, $state: ident, $default_state: ident, $modified: ident) => {
+        let mut $elt = if $state.$elt.is_some() {
+            let myid = format!("{}", stringify!($elt));
+            let mut $elt = HtmlValueContainer::new(&myid, &$state.$elt.clone().unwrap());;
+            let rc = std::rc::Rc::new(std::cell::RefCell::new($elt));
+            $gd.push(rc.clone());
+            Some(rc)
+        } else {
+            None
+        };
+    };
+}
+
+#[macro_export]
+macro_rules! html_nested_option_value_container {
+    ( $gd: ident, $parent: ident, $idx: expr, $elt: ident, $state: ident, $default_state: ident, $modified: ident) => {
+        let mut $elt = if $state.$parent[$idx].$elt.is_some() {
+            let myid = format!("{}__{}__{}", stringify!($parent), $idx, stringify!($elt));
+            let mut $elt =
+                HtmlValueContainer::new(&myid, &$state.$parent[$idx].$elt.clone().unwrap());;
+            let rc = std::rc::Rc::new(std::cell::RefCell::new($elt));
+            $gd.push(rc.clone());
+            Some(rc)
+        } else {
+            None
+        };
+    };
+}
+
+#[macro_export]
 macro_rules! html_select {
     ( $gd: ident, $elt: ident, $from: expr , $state: ident, $default_state: ident, $modified: ident) => {
         let mut $elt = std::rc::Rc::new(std::cell::RefCell::new($from.clone()));
