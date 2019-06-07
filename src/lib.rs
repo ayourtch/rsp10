@@ -99,20 +99,18 @@ macro_rules! html_text {
 #[macro_export]
 macro_rules! html_option_text {
     ($gd: ident, $elt: ident, $state: ident, $default_state: ident, $modified: ident) => {
-        let mut $elt: Option<std::rc::Rc<std::cell::RefCell<HtmlText>>> = 
-        if $state.$elt.is_some() {
+        let mut $elt: Option<std::rc::Rc<std::cell::RefCell<HtmlText>>> = if $state.$elt.is_some() {
             let mut $elt: HtmlText = Default::default();
             $elt.highlight = $state.$elt != $default_state.$elt;
             $elt.value = $state.$elt.clone().unwrap().to_string();
             $elt.id = format!("{}", stringify!($elt));
             $modified = $modified || $elt.highlight;
-            let rc =  std::rc::Rc::new(std::cell::RefCell::new($elt));
+            let rc = std::rc::Rc::new(std::cell::RefCell::new($elt));
             $gd.push(rc.clone());
             Some(rc)
         } else {
             None
         };
-
     };
 }
 
@@ -170,20 +168,19 @@ macro_rules! html_nested_text {
 #[macro_export]
 macro_rules! html_nested_option_text {
     ( $gd: ident, $parent: ident, $idx: expr, $elt: ident, $state: ident, $default_state: ident, $modified: ident) => {
-        let mut $elt: Option<std::rc::Rc<std::cell::RefCell<HtmlText>>> = 
-        if $state.$parent[$idx].$elt.is_some() {
-            let mut $elt: HtmlText = Default::default();
-            $elt.highlight = $state.$parent[$idx].$elt != $default_state.$parent[$idx].$elt;
-            $elt.value = $state.$parent[$idx].$elt.clone().unwrap().to_string();
-            $elt.id = format!("{}__{}__{}", stringify!($parent), $idx, stringify!($elt));
-            $modified = $modified || $elt.highlight;
-            let rc =  std::rc::Rc::new(std::cell::RefCell::new($elt));
-            $gd.push(rc.clone());
-            Some(rc)
-        } else {
-            None
-        };
-
+        let mut $elt: Option<std::rc::Rc<std::cell::RefCell<HtmlText>>> =
+            if $state.$parent[$idx].$elt.is_some() {
+                let mut $elt: HtmlText = Default::default();
+                $elt.highlight = $state.$parent[$idx].$elt != $default_state.$parent[$idx].$elt;
+                $elt.value = $state.$parent[$idx].$elt.clone().unwrap().to_string();
+                $elt.id = format!("{}__{}__{}", stringify!($parent), $idx, stringify!($elt));
+                $modified = $modified || $elt.highlight;
+                let rc = std::rc::Rc::new(std::cell::RefCell::new($elt));
+                $gd.push(rc.clone());
+                Some(rc)
+            } else {
+                None
+            };
     };
 }
 
@@ -502,7 +499,7 @@ where
         };
         if redirect_to.is_empty() {
             if maybe_state.is_none() || maybe_initial_state.is_none() || reload_state {
-                let st = Self::get_state(&auth, key.clone());
+                let st = curr_initial_state.clone();
                 println!("Reload state");
                 maybe_initial_state = Some(st.clone());
                 maybe_state = Some(st);
@@ -524,6 +521,9 @@ where
             data = data.insert("state_key", &key).unwrap();
             data = data.insert("initial_state", &initial_state).unwrap();
             data = data
+                .insert("curr_initial_state", &curr_initial_state)
+                .unwrap();
+            data = data
                 .insert("state_json", &serde_json::to_string(&state).unwrap())
                 .unwrap();
             data = data
@@ -533,6 +533,12 @@ where
             data = data
                 .insert(
                     "initial_state_json",
+                    &serde_json::to_string(&initial_state).unwrap(),
+                )
+                .unwrap();
+            data = data
+                .insert(
+                    "curr_initial_state_json",
                     &serde_json::to_string(&initial_state).unwrap(),
                 )
                 .unwrap();
