@@ -48,7 +48,7 @@ mod html_types;
 pub use html_types::*;
 
 #[macro_export]
-macro_rules! html_page {
+macro_rules! rsp10_page {
     ($router: ident, $url: expr, $name: ident, $file: expr) => {
         #[path=$file] mod $name;
         $router.get($url, $name::PageState::handler, format!("GET/{}", $url));
@@ -58,7 +58,7 @@ macro_rules! html_page {
 }
 
 #[macro_export]
-macro_rules! html_option_value_container {
+macro_rules! rsp10_option_value_container {
     ($gd: ident, $elt: ident, $state: ident, $default_state: ident, $modified: ident) => {
         let mut $elt = if $state.$elt.is_some() {
             let myid = format!("{}", stringify!($elt));
@@ -73,7 +73,7 @@ macro_rules! html_option_value_container {
 }
 
 #[macro_export]
-macro_rules! html_nested_option_value_container {
+macro_rules! rsp10_nested_option_value_container {
     ( $gd: ident, $parent: ident, $idx: expr, $elt: ident, $state: ident, $default_state: ident, $modified: ident) => {
         let mut $elt = if $state.$parent[$idx].$elt.is_some() {
             let myid = format!("{}__{}__{}", stringify!($parent), $idx, stringify!($elt));
@@ -89,7 +89,7 @@ macro_rules! html_nested_option_value_container {
 }
 
 #[macro_export]
-macro_rules! html_gd {
+macro_rules! rsp10_gd {
     ( $gd: ident, $elt: ident) => {
         let $gd = || {
             $gd()
@@ -99,7 +99,7 @@ macro_rules! html_gd {
     };
 }
 #[macro_export]
-macro_rules! html_select {
+macro_rules! rsp10_select {
     ( $gd: ident, $elt: ident, $from: expr , $rinfo: ident, $modified: ident) => {
         let mut $elt = std::rc::Rc::new(std::cell::RefCell::new($from.clone()));
         {
@@ -109,12 +109,12 @@ macro_rules! html_select {
             $elt.id = format!("{}", stringify!($elt));
             $modified = $modified || $elt.highlight;
         }
-        html_gd!($gd, $elt);
+        rsp10_gd!($gd, $elt);
     };
 }
 
 #[macro_export]
-macro_rules! html_nested_select {
+macro_rules! rsp10_nested_select {
     ( $gd: ident, $parent: ident, $idx: expr, $elt: ident, $from: expr , $state: ident, $default_state: ident, $modified: ident) => {
         let mut $elt = std::rc::Rc::new(std::cell::RefCell::new($from.clone()));
         {
@@ -129,7 +129,7 @@ macro_rules! html_nested_select {
 }
 
 #[macro_export]
-macro_rules! html_text {
+macro_rules! rsp10_text {
     ($gd: ident, $elt: ident, $rinfo: ident, $modified: ident) => {
         let mut $elt: std::rc::Rc<std::cell::RefCell<HtmlText>> =
             std::rc::Rc::new(std::cell::RefCell::new(Default::default()));
@@ -140,12 +140,12 @@ macro_rules! html_text {
             $elt.id = format!("{}", stringify!($elt));
             $modified = $modified || $elt.highlight;
         }
-        html_gd!($gd, $elt);
+        rsp10_gd!($gd, $elt);
     };
 }
 
 #[macro_export]
-macro_rules! html_option_text {
+macro_rules! rsp10_option_text {
     ($gd: ident, $elt: ident, $state: ident, $default_state: ident, $modified: ident) => {
         let mut $elt: Option<std::rc::Rc<std::cell::RefCell<HtmlText>>> = if $state.$elt.is_some() {
             let mut $elt: HtmlText = Default::default();
@@ -163,7 +163,7 @@ macro_rules! html_option_text {
 }
 
 #[macro_export]
-macro_rules! html_button {
+macro_rules! rsp10_button {
     ($gd: ident, $elt: ident, $label: expr) => {
         let mut $elt: std::rc::Rc<std::cell::RefCell<HtmlButton>> =
             std::rc::Rc::new(std::cell::RefCell::new(Default::default()));
@@ -172,12 +172,12 @@ macro_rules! html_button {
             $elt.id = format!("{}", stringify!($elt));
             $elt.value = $label.into();
         }
-        html_gd!($gd, $elt);
+        rsp10_gd!($gd, $elt);
     };
 }
 
 #[macro_export]
-macro_rules! html_nested_button {
+macro_rules! rsp10_nested_button {
     ($parent: ident, $idx: ident,  $elt: ident, $label: expr) => {
         let mut $elt: HtmlButton = Default::default();
         $elt.id = format!("{}__{}__{}", stringify!($parent), $idx, stringify!($elt));
@@ -186,7 +186,7 @@ macro_rules! html_nested_button {
 }
 
 #[macro_export]
-macro_rules! html_text_escape_backtick {
+macro_rules! rsp10_text_escape_backtick {
     ( $elt: ident, $state: ident, $default_state: ident, $modified: ident) => {
         let mut $elt: HtmlText = Default::default();
         $elt.highlight = $state.$elt != $default_state.$elt;
@@ -197,7 +197,7 @@ macro_rules! html_text_escape_backtick {
 }
 
 #[macro_export]
-macro_rules! html_nested_text {
+macro_rules! rsp10_nested_text {
     ( $gd: ident, $parent: ident, $idx: expr, $elt: ident, $state: ident, $default_state: ident, $modified: ident) => {
         let mut $elt: std::rc::Rc<std::cell::RefCell<HtmlText>> =
             std::rc::Rc::new(std::cell::RefCell::new(Default::default()));
@@ -213,7 +213,7 @@ macro_rules! html_nested_text {
 }
 
 #[macro_export]
-macro_rules! html_nested_option_text {
+macro_rules! rsp10_nested_option_text {
     ( $gd: ident, $parent: ident, $idx: expr, $elt: ident, $state: ident, $default_state: ident, $modified: ident) => {
         let mut $elt: Option<std::rc::Rc<std::cell::RefCell<HtmlText>>> =
             if $state.$parent[$idx].$elt.is_some() {
@@ -232,7 +232,7 @@ macro_rules! html_nested_option_text {
 }
 
 #[macro_export]
-macro_rules! html_check {
+macro_rules! rsp10_check {
     ( $gd: ident, $elt: ident, $rinfo: ident, $modified: ident) => {
         let mut $elt: std::rc::Rc<std::cell::RefCell<HtmlCheck>> =
             std::rc::Rc::new(std::cell::RefCell::new(Default::default()));
@@ -243,12 +243,12 @@ macro_rules! html_check {
             $elt.id = format!("{}", stringify!($elt));
             $elt.checked = $rinfo.state.$elt;
         }
-        html_gd!($gd, $elt);
+        rsp10_gd!($gd, $elt);
     };
 }
 
 #[macro_export]
-macro_rules! html_nested_check {
+macro_rules! rsp10_nested_check {
     ( $gd: ident, $parent: ident, $idx: expr, $elt: ident, $state: ident, $default_state: ident, $modified: ident) => {
         let mut $elt: std::rc::Rc<std::cell::RefCell<HtmlCheck>> =
             std::rc::Rc::new(std::cell::RefCell::new(Default::default()));
