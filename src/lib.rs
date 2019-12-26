@@ -419,13 +419,11 @@ where
 }
 
 pub struct RspRequestInfo<'a, R, T, TA> {
-        auth: &'a TA,
-        data: MapBuilder,
-        ev: &'a RspEvent,
-        curr_key: &'a T,
-        maybe_state: &'a mut Option<R>,
-        maybe_initial_state: &'a Option<R>,
-        curr_initial_state: &'a R,
+    auth: &'a TA,
+    event: &'a RspEvent,
+    key: &'a T,
+    maybe_initial_state: &'a Option<R>,
+    curr_initial_state: &'a R,
 }
 
 pub trait RspState<T, TA>
@@ -434,28 +432,19 @@ where
     TA: RspUserAuth,
     T: serde::Serialize + Clone,
 {
-
     fn get_key(auth: &TA, args: &HashMap<String, Vec<String>>, maybe_state: &Option<Self>) -> T;
     fn get_state(auth: &TA, key: T) -> Self;
 
     fn event_handler(
         req: &mut Request,
-        auth: &TA,
-        ev: &RspEvent,
-        curr_key: &T,
+        ri: RspRequestInfo<Self, T, TA>,
         maybe_state: &mut Option<Self>,
-        maybe_initial_state: &Option<Self>,
-        curr_initial_state: &Self,
     ) -> RspAction<T>;
 
     fn fill_data(
-        auth: &TA,
         data: MapBuilder,
-        ev: &RspEvent,
-        curr_key: &T,
+        ri: RspRequestInfo<Self, T, TA>,
         state: &mut Self,
-        initial_state: &Self,
-        curr_initial_state: &Self,
     ) -> MapBuilder {
         data
     }
@@ -529,14 +518,17 @@ where
         let event = req_get_event(req);
 
         let curr_initial_state = Self::get_state(&auth, key.clone());
+            let ri = RspRequestInfo {
+                auth: &auth,
+                event: &event,
+                key: &key,
+                maybe_initial_state: &maybe_initial_state,
+                curr_initial_state: &curr_initial_state,
+            };
         let action = Self::event_handler(
             req,
-            &auth,
-            &event,
-            &key,
+            ri,
             &mut maybe_state,
-            &maybe_initial_state,
-            &curr_initial_state,
         );
 
         match action {
@@ -567,16 +559,15 @@ where
             };
             let template = get_page_template!(&template_name);
             let mut state = maybe_state.unwrap();
+            let ri = RspRequestInfo {
+                auth: &auth,
+                event: &event,
+                key: &key,
+                maybe_initial_state: &maybe_initial_state,
+                curr_initial_state: &curr_initial_state,
+            };
+            let data = Self::fill_data(data, ri, &mut state);
             let initial_state = maybe_initial_state.unwrap();
-            let data = Self::fill_data(
-                &auth,
-                data,
-                &event,
-                &key,
-                &mut state,
-                &initial_state,
-                &curr_initial_state,
-            );
             let data = data.insert("state", &state).unwrap();
             let data = data.insert("state_key", &key).unwrap();
             let data = data.insert("initial_state", &initial_state).unwrap();
