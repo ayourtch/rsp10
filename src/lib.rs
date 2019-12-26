@@ -111,13 +111,13 @@ macro_rules! html_nested_select {
 
 #[macro_export]
 macro_rules! html_text {
-    ($gd: ident, $elt: ident, $state: ident, $default_state: expr, $modified: ident) => {
+    ($gd: ident, $elt: ident, $rinfo: ident, $modified: ident) => {
         let mut $elt: std::rc::Rc<std::cell::RefCell<HtmlText>> =
             std::rc::Rc::new(std::cell::RefCell::new(Default::default()));
         {
             let mut $elt = $elt.borrow_mut();
-            $elt.highlight = $state.$elt != $default_state.$elt;
-            $elt.value = $state.$elt.clone().to_string();
+            $elt.highlight = $rinfo.state.$elt != $rinfo.initial_state.$elt;
+            $elt.value = $rinfo.state.$elt.clone().to_string();
             $elt.id = format!("{}", stringify!($elt));
             $modified = $modified || $elt.highlight;
         }
@@ -418,12 +418,28 @@ where
     // fn has_rights(auth: &Self, rights: &str) -> bool;
 }
 
-pub struct RspRequestInfo<'a, R, T, TA> {
+pub struct RspRequestInfo<'a, 'b, 'c, R, T, TA> {
+    pub req: &'a mut Request<'b, 'c>,
     pub auth: &'a TA,
     pub event: &'a RspEvent,
     pub key: &'a T,
-    pub maybe_initial_state: &'a Option<R>,
+    pub state_none: bool,
+    pub state: R,
+    pub initial_state: R,
+    pub initial_state_none: bool,
     pub curr_initial_state: &'a R,
+}
+
+pub struct RspEventHandlerResult<R, T> {
+    pub state: R,
+    pub initial_state: R,
+    pub action: RspAction<T>,
+}
+
+pub struct RspFillDataResult<R> {
+    pub state: R,
+    pub initial_state: R,
+    pub data: MapBuilder,
 }
 
 pub trait RspState<T, TA>
@@ -433,20 +449,31 @@ where
     T: serde::Serialize + Clone,
 {
     fn get_key(auth: &TA, args: &HashMap<String, Vec<String>>, maybe_state: &Option<Self>) -> T;
-    fn get_state(auth: &TA, key: T) -> Self;
+    fn get_state(req: &mut Request, auth: &TA, key: T) -> Self;
 
-    fn event_handler(
-        req: &mut Request,
-        ri: RspRequestInfo<Self, T, TA>,
-        maybe_state: &mut Option<Self>,
-    ) -> RspAction<T>;
+    fn event_handler(ri: RspRequestInfo<Self, T, TA>) -> RspEventHandlerResult<Self, T>;
 
-    fn fill_data(
-        data: MapBuilder,
-        ri: RspRequestInfo<Self, T, TA>,
-        state: &mut Self,
-    ) -> MapBuilder {
-        data
+    fn default_event_handler_result(ri: RspRequestInfo<Self, T, TA>) -> RspEventHandlerResult<Self, T> {
+            let mut action = RspAction::Render;
+                      let mut initial_state = ri.initial_state;
+                              let mut state = ri.state;
+                                      RspEventHandlerResult { initial_state, state, action }
+
+
+    }
+
+    fn default_fill_data_result_with_data(ri: RspRequestInfo<Self, T, TA>, data: MapBuilder) -> RspFillDataResult<Self> {
+        let initial_state = ri.initial_state;
+        let state = ri.state;
+        RspFillDataResult {initial_state, state, data}
+    }
+    fn default_fill_data_result(ri: RspRequestInfo<Self, T, TA>) -> RspFillDataResult<Self> {
+        let data = MapBuilder::new();
+        Self::default_fill_data_result_with_data(ri, data)
+    }
+
+    fn fill_data(ri: RspRequestInfo<Self, T, TA>) -> RspFillDataResult<Self> {
+        Self::default_fill_data_result(ri)
     }
 
     fn get_template_name() -> String {
@@ -517,19 +544,24 @@ where
 
         let event = req_get_event(req);
 
-        let curr_initial_state = Self::get_state(&auth, key.clone());
-            let ri = RspRequestInfo {
-                auth: &auth,
-                event: &event,
-                key: &key,
-                maybe_initial_state: &maybe_initial_state,
-                curr_initial_state: &curr_initial_state,
-            };
-        let action = Self::event_handler(
-            req,
-            ri,
-            &mut maybe_state,
-        );
+        let curr_initial_state = Self::get_state(req, &auth, key.clone());
+        let state_none = maybe_state.is_none();
+        let initial_state_none = maybe_initial_state.is_none();
+        let initial_state = maybe_initial_state.unwrap_or(curr_initial_state.clone());
+        let state = maybe_state.unwrap_or(initial_state.clone());
+        let ri = RspRequestInfo {
+            req: req,
+            auth: &auth,
+            event: &event,
+            key: &key,
+            state, state_none,
+            initial_state, initial_state_none,
+            curr_initial_state: &curr_initial_state,
+        };
+        let r = Self::event_handler(ri);
+        let mut initial_state = r.initial_state;
+        let mut state = r.state;
+        let action = r.action;
 
         match action {
             RspAction::Render => {}
@@ -545,29 +577,31 @@ where
             }
         };
         if redirect_to.is_empty() {
-            if maybe_state.is_none() || maybe_initial_state.is_none() || reload_state {
+            if reload_state {
                 let st = curr_initial_state.clone();
                 println!("Reload state");
-                maybe_initial_state = Some(st.clone());
-                maybe_state = Some(st);
+                initial_state = st.clone();
+                state = st;
             }
-            let data = MapBuilder::new();
             let template_name = if &Self::get_template_name() != "" {
                 Self::get_template_name()
             } else {
                 Self::get_template_name_auto()
             };
             let template = get_page_template!(&template_name);
-            let mut state = maybe_state.unwrap();
             let ri = RspRequestInfo {
+                req: req,
                 auth: &auth,
                 event: &event,
                 key: &key,
-                maybe_initial_state: &maybe_initial_state,
+                state, state_none: false,
+                initial_state, initial_state_none: false,
                 curr_initial_state: &curr_initial_state,
             };
-            let data = Self::fill_data(data, ri, &mut state);
-            let initial_state = maybe_initial_state.unwrap();
+            let r = Self::fill_data(ri);
+            let initial_state = r.initial_state;
+            let state = r.state;
+            let data = r.data;
             let data = data.insert("state", &state).unwrap();
             let data = data.insert("state_key", &key).unwrap();
             let data = data.insert("initial_state", &initial_state).unwrap();
