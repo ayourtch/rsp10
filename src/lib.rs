@@ -418,7 +418,7 @@ where
     // fn has_rights(auth: &Self, rights: &str) -> bool;
 }
 
-pub struct RspRequestInfo<'a, 'b, 'c, R, T, TA> {
+pub struct RspInfo<'a, 'b, 'c, R, T, TA> {
     pub req: &'a mut Request<'b, 'c>,
     pub auth: &'a TA,
     pub event: &'a RspEvent,
@@ -451,28 +451,37 @@ where
     fn get_key(auth: &TA, args: &HashMap<String, Vec<String>>, maybe_state: &Option<Self>) -> T;
     fn get_state(req: &mut Request, auth: &TA, key: T) -> Self;
 
-    fn event_handler(ri: RspRequestInfo<Self, T, TA>) -> RspEventHandlerResult<Self, T>;
+    fn event_handler(ri: RspInfo<Self, T, TA>) -> RspEventHandlerResult<Self, T>;
 
-    fn default_event_handler_result(ri: RspRequestInfo<Self, T, TA>) -> RspEventHandlerResult<Self, T> {
-            let mut action = RspAction::Render;
-                      let mut initial_state = ri.initial_state;
-                              let mut state = ri.state;
-                                      RspEventHandlerResult { initial_state, state, action }
-
-
+    fn default_event_handler_result(ri: RspInfo<Self, T, TA>) -> RspEventHandlerResult<Self, T> {
+        let mut action = RspAction::Render;
+        let mut initial_state = ri.initial_state;
+        let mut state = ri.state;
+        RspEventHandlerResult {
+            initial_state,
+            state,
+            action,
+        }
     }
 
-    fn default_fill_data_result_with_data(ri: RspRequestInfo<Self, T, TA>, data: MapBuilder) -> RspFillDataResult<Self> {
+    fn default_fill_data_result_with_data(
+        ri: RspInfo<Self, T, TA>,
+        data: MapBuilder,
+    ) -> RspFillDataResult<Self> {
         let initial_state = ri.initial_state;
         let state = ri.state;
-        RspFillDataResult {initial_state, state, data}
+        RspFillDataResult {
+            initial_state,
+            state,
+            data,
+        }
     }
-    fn default_fill_data_result(ri: RspRequestInfo<Self, T, TA>) -> RspFillDataResult<Self> {
+    fn default_fill_data_result(ri: RspInfo<Self, T, TA>) -> RspFillDataResult<Self> {
         let data = MapBuilder::new();
         Self::default_fill_data_result_with_data(ri, data)
     }
 
-    fn fill_data(ri: RspRequestInfo<Self, T, TA>) -> RspFillDataResult<Self> {
+    fn fill_data(ri: RspInfo<Self, T, TA>) -> RspFillDataResult<Self> {
         Self::default_fill_data_result(ri)
     }
 
@@ -549,13 +558,15 @@ where
         let initial_state_none = maybe_initial_state.is_none();
         let initial_state = maybe_initial_state.unwrap_or(curr_initial_state.clone());
         let state = maybe_state.unwrap_or(initial_state.clone());
-        let ri = RspRequestInfo {
+        let ri = RspInfo {
             req: req,
             auth: &auth,
             event: &event,
             key: &key,
-            state, state_none,
-            initial_state, initial_state_none,
+            state,
+            state_none,
+            initial_state,
+            initial_state_none,
             curr_initial_state: &curr_initial_state,
         };
         let r = Self::event_handler(ri);
@@ -589,13 +600,15 @@ where
                 Self::get_template_name_auto()
             };
             let template = get_page_template!(&template_name);
-            let ri = RspRequestInfo {
+            let ri = RspInfo {
                 req: req,
                 auth: &auth,
                 event: &event,
                 key: &key,
-                state, state_none: false,
-                initial_state, initial_state_none: false,
+                state,
+                state_none: false,
+                initial_state,
+                initial_state_none: false,
                 curr_initial_state: &curr_initial_state,
             };
             let r = Self::fill_data(ri);
