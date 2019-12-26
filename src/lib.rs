@@ -48,6 +48,16 @@ mod html_types;
 pub use html_types::*;
 
 #[macro_export]
+macro_rules! html_page {
+    ($router: ident, $url: expr, $name: ident, $file: expr) => {
+        #[path=$file] mod $name;
+        $router.get($url, $name::PageState::handler, format!("GET/{}", $url));
+        $router.post($url, $name::PageState::handler, format!("POST/{}", $url));
+        $router.put($url, $name::PageState::handler, format!("PUT/{}", $url));
+    };
+}
+
+#[macro_export]
 macro_rules! html_option_value_container {
     ($gd: ident, $elt: ident, $state: ident, $default_state: ident, $modified: ident) => {
         let mut $elt = if $state.$elt.is_some() {
@@ -79,18 +89,27 @@ macro_rules! html_nested_option_value_container {
 }
 
 #[macro_export]
+macro_rules! html_gd {
+    ( $gd: ident, $elt: ident) => {
+        let $gd = || {
+            $gd()
+                .insert(stringify!($elt), &$elt.borrow().clone())
+                .unwrap()
+        };
+    };
+}
+#[macro_export]
 macro_rules! html_select {
-    ( $gd: ident, $elt: ident, $from: expr , $state: ident, $default_state: ident, $modified: ident) => {
+    ( $gd: ident, $elt: ident, $from: expr , $rinfo: ident, $modified: ident) => {
         let mut $elt = std::rc::Rc::new(std::cell::RefCell::new($from.clone()));
         {
             let mut $elt = $elt.borrow_mut();
-            $elt.set_selected_value(&mut $state.$elt);
-            $elt.highlight = $state.$elt != $default_state.$elt;
+            $elt.set_selected_value(&mut $rinfo.state.$elt);
+            $elt.highlight = $rinfo.state.$elt != $rinfo.initial_state.$elt;
             $elt.id = format!("{}", stringify!($elt));
             $modified = $modified || $elt.highlight;
         }
-        // let $gd = || $gd().insert(stringify!($elt), &$elt).unwrap();
-        $gd.push($elt.clone());
+        html_gd!($gd, $elt);
     };
 }
 
@@ -121,13 +140,7 @@ macro_rules! html_text {
             $elt.id = format!("{}", stringify!($elt));
             $modified = $modified || $elt.highlight;
         }
-
-        let $gd = || {
-            $gd()
-                .insert(stringify!($elt), &$elt.borrow().clone())
-                .unwrap()
-        };
-        println!("GDElt: {}", stringify!($elt));
+        html_gd!($gd, $elt);
     };
 }
 
@@ -159,8 +172,7 @@ macro_rules! html_button {
             $elt.id = format!("{}", stringify!($elt));
             $elt.value = $label.into();
         }
-        // let $gd = || $gd().insert(stringify!($elt), &$elt).unwrap();
-        $gd.push($elt.clone());
+        html_gd!($gd, $elt);
     };
 }
 
@@ -221,18 +233,17 @@ macro_rules! html_nested_option_text {
 
 #[macro_export]
 macro_rules! html_check {
-    ( $gd: ident, $elt: ident, $state: ident, $default_state: ident, $modified: ident) => {
+    ( $gd: ident, $elt: ident, $rinfo: ident, $modified: ident) => {
         let mut $elt: std::rc::Rc<std::cell::RefCell<HtmlCheck>> =
             std::rc::Rc::new(std::cell::RefCell::new(Default::default()));
         {
             let mut $elt = $elt.borrow_mut();
-            $elt.highlight = $state.$elt != $default_state.$elt;
+            $elt.highlight = $rinfo.state.$elt != $rinfo.initial_state.$elt;
             $modified = $modified || $elt.highlight;
             $elt.id = format!("{}", stringify!($elt));
-            $elt.checked = $state.$elt;
+            $elt.checked = $rinfo.state.$elt;
         }
-        // let $gd = || $gd().insert(stringify!($elt), &$elt).unwrap();
-        $gd.push($elt.clone());
+        html_gd!($gd, $elt);
     };
 }
 
@@ -654,9 +665,21 @@ pub struct RspServer {
 }
 
 impl RspServer {
+    pub fn read_default_secret() -> Result<Vec<u8>, std::io::Error> {
+        use std::fs::File;
+        use std::io;
+        use std::io::prelude::*;
+
+        let mut f = File::open(".secret")?;
+        let mut buffer = Vec::new();
+
+        f.read_to_end(&mut buffer)?;
+        Ok(buffer)
+    }
     pub fn new() -> RspServer {
+        let secret = Self::read_default_secret().ok();
         RspServer {
-            default_secret: None,
+            default_secret: secret,
         }
     }
 
