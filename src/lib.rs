@@ -52,7 +52,7 @@ macro_rules! html_option_value_container {
     ($gd: ident, $elt: ident, $state: ident, $default_state: ident, $modified: ident) => {
         let mut $elt = if $state.$elt.is_some() {
             let myid = format!("{}", stringify!($elt));
-            let mut $elt = HtmlValueContainer::new(&myid, &$state.$elt.clone().unwrap());;
+            let mut $elt = HtmlValueContainer::new(&myid, &$state.$elt.clone().unwrap());
             let rc = std::rc::Rc::new(std::cell::RefCell::new($elt));
             $gd.push(rc.clone());
             Some(rc)
@@ -68,7 +68,7 @@ macro_rules! html_nested_option_value_container {
         let mut $elt = if $state.$parent[$idx].$elt.is_some() {
             let myid = format!("{}__{}__{}", stringify!($parent), $idx, stringify!($elt));
             let mut $elt =
-                HtmlValueContainer::new(&myid, &$state.$parent[$idx].$elt.clone().unwrap());;
+                HtmlValueContainer::new(&myid, &$state.$parent[$idx].$elt.clone().unwrap());
             let rc = std::rc::Rc::new(std::cell::RefCell::new($elt));
             $gd.push(rc.clone());
             Some(rc)
@@ -122,8 +122,12 @@ macro_rules! html_text {
             $modified = $modified || $elt.highlight;
         }
 
-        // let $gd = || $gd().insert(stringify!($elt), &$elt).unwrap();
-        $gd.push($elt.clone());
+        let $gd = || {
+            $gd()
+                .insert(stringify!($elt), &$elt.borrow().clone())
+                .unwrap()
+        };
+        println!("GDElt: {}", stringify!($elt));
     };
 }
 
@@ -406,10 +410,6 @@ fn http_redirect(redirect_to: &str) -> IronResult<Response> {
     Ok(resp)
 }
 
-pub trait RspStateName {
-    fn get_template_name() -> String;
-}
-
 pub trait RspUserAuth
 where
     Self: std::marker::Sized,
@@ -418,17 +418,23 @@ where
     // fn has_rights(auth: &Self, rights: &str) -> bool;
 }
 
+pub struct RspRequestInfo<'a, R, T, TA> {
+        auth: &'a TA,
+        data: MapBuilder,
+        ev: &'a RspEvent,
+        curr_key: &'a T,
+        maybe_state: &'a mut Option<R>,
+        maybe_initial_state: &'a Option<R>,
+        curr_initial_state: &'a R,
+}
+
 pub trait RspState<T, TA>
 where
-    Self: std::marker::Sized
-        + serde::Serialize
-        + serde::de::DeserializeOwned
-        + Clone
-        + Debug
-        + RspStateName,
+    Self: std::marker::Sized + serde::Serialize + serde::de::DeserializeOwned + Clone + Debug,
     TA: RspUserAuth,
     T: serde::Serialize + Clone,
 {
+
     fn get_key(auth: &TA, args: &HashMap<String, Vec<String>>, maybe_state: &Option<Self>) -> T;
     fn get_state(auth: &TA, key: T) -> Self;
 
@@ -443,15 +449,33 @@ where
     ) -> RspAction<T>;
 
     fn fill_data(
-        _auth: &TA,
-        _data: MapBuilder,
-        _ev: &RspEvent,
-        _curr_key: &T,
-        _state: &mut Self,
-        _initial_state: &Self,
-        _curr_initial_state: &Self,
+        auth: &TA,
+        data: MapBuilder,
+        ev: &RspEvent,
+        curr_key: &T,
+        state: &mut Self,
+        initial_state: &Self,
+        curr_initial_state: &Self,
     ) -> MapBuilder {
-        _data
+        data
+    }
+
+    fn get_template_name() -> String {
+        return "".into();
+    }
+
+    fn get_template_name_auto() -> String {
+        use std::any::type_name;
+        fn test_type<T: ?Sized>() -> String {
+            // <--- trick is in that bound
+            let test = unsafe { type_name::<T>() };
+            println!("AUTO TYPE:{:?}", test);
+            let components: Vec<String> = test.split("::").map(|x| x.to_string()).collect();
+            let ret = components[components.len() - 2].to_string();
+            println!("Result: {}", &ret);
+            ret
+        }
+        test_type::<Self>()
     }
 
     fn handler(req: &mut Request) -> IronResult<Response> {
@@ -535,11 +559,16 @@ where
                 maybe_initial_state = Some(st.clone());
                 maybe_state = Some(st);
             }
-            let mut data = MapBuilder::new();
-            let template = get_page_template!(&Self::get_template_name());
+            let data = MapBuilder::new();
+            let template_name = if &Self::get_template_name() != "" {
+                Self::get_template_name()
+            } else {
+                Self::get_template_name_auto()
+            };
+            let template = get_page_template!(&template_name);
             let mut state = maybe_state.unwrap();
             let initial_state = maybe_initial_state.unwrap();
-            data = Self::fill_data(
+            let data = Self::fill_data(
                 &auth,
                 data,
                 &event,
@@ -548,26 +577,26 @@ where
                 &initial_state,
                 &curr_initial_state,
             );
-            data = data.insert("state", &state).unwrap();
-            data = data.insert("state_key", &key).unwrap();
-            data = data.insert("initial_state", &initial_state).unwrap();
-            data = data
+            let data = data.insert("state", &state).unwrap();
+            let data = data.insert("state_key", &key).unwrap();
+            let data = data.insert("initial_state", &initial_state).unwrap();
+            let data = data
                 .insert("curr_initial_state", &curr_initial_state)
                 .unwrap();
-            data = data
+            let data = data
                 .insert("state_json", &serde_json::to_string(&state).unwrap())
                 .unwrap();
-            data = data
+            let data = data
                 .insert("state_key_json", &serde_json::to_string(&key).unwrap())
                 .unwrap();
 
-            data = data
+            let data = data
                 .insert(
                     "initial_state_json",
                     &serde_json::to_string(&initial_state).unwrap(),
                 )
                 .unwrap();
-            data = data
+            let data = data
                 .insert(
                     "curr_initial_state_json",
                     &serde_json::to_string(&initial_state).unwrap(),
