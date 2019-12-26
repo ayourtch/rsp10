@@ -111,7 +111,7 @@ macro_rules! html_nested_select {
 
 #[macro_export]
 macro_rules! html_text {
-    ($gd: ident, $elt: ident, $state: ident, $default_state: ident, $modified: ident) => {
+    ($gd: ident, $elt: ident, $state: ident, $default_state: expr, $modified: ident) => {
         let mut $elt: std::rc::Rc<std::cell::RefCell<HtmlText>> =
             std::rc::Rc::new(std::cell::RefCell::new(Default::default()));
         {
@@ -419,11 +419,11 @@ where
 }
 
 pub struct RspRequestInfo<'a, R, T, TA> {
-    auth: &'a TA,
-    event: &'a RspEvent,
-    key: &'a T,
-    maybe_initial_state: &'a Option<R>,
-    curr_initial_state: &'a R,
+    pub auth: &'a TA,
+    pub event: &'a RspEvent,
+    pub key: &'a T,
+    pub maybe_initial_state: &'a Option<R>,
+    pub curr_initial_state: &'a R,
 }
 
 pub trait RspState<T, TA>
