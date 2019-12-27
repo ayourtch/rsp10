@@ -457,12 +457,34 @@ pub trait RspState<T, TA>
 where
     Self: std::marker::Sized + serde::Serialize + serde::de::DeserializeOwned + Clone + Debug,
     TA: RspUserAuth,
-    T: serde::Serialize + Clone,
+    T: serde::Serialize + Clone + Default + serde::de::DeserializeOwned,
 {
-    fn get_key(auth: &TA, args: &HashMap<String, Vec<String>>, maybe_state: &Option<Self>) -> T;
     fn get_state(req: &mut Request, auth: &TA, key: T) -> Self;
 
     fn event_handler(ri: RspInfo<Self, T, TA>) -> RspEventHandlerResult<Self, T>;
+
+    fn get_key(
+        auth: &TA,
+        args: &HashMap<String, Vec<String>>,
+        maybe_state: &Option<Self>,
+    ) -> Option<T> {
+        None
+    }
+
+    fn get_key_from_req(auth: &TA, req: &mut Request) -> Option<T> {
+        use urlencoded::UrlEncodedQuery;
+        let req_res: Result<T, req2struct::Error> = match req.get_ref::<UrlEncodedQuery>() {
+            Ok(ref hashmap) => {
+                let res: Result<T, _> = req2struct::from_map(&hashmap);
+                res
+            }
+            _ => {
+                let hm: HashMap<String, Vec<String>> = HashMap::new();
+                req2struct::from_map(&hm)
+            }
+        };
+        req_res.ok()
+    }
 
     fn default_event_handler_result(ri: RspInfo<Self, T, TA>) -> RspEventHandlerResult<Self, T> {
         let mut action = RspAction::Render;
@@ -554,13 +576,19 @@ where
 
         let mut maybe_initial_state = maybe_res.ok();
 
-        let mut key = match req.get_ref::<UrlEncodedQuery>() {
+        let mut maybe_key = match req.get_ref::<UrlEncodedQuery>() {
             Ok(ref hashmap) => Self::get_key(&auth, &hashmap, &maybe_state),
             Err(ref _e) => {
                 let hm = HashMap::new();
                 Self::get_key(&auth, &hm, &maybe_state)
             }
         };
+
+        if maybe_key.is_none() {
+            maybe_key = Self::get_key_from_req(&auth, req);
+        }
+
+        let mut key = maybe_key.unwrap_or(Default::default());
 
         let event = req_get_event(req);
 
