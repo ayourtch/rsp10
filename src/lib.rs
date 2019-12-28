@@ -741,6 +741,7 @@ fn run_http_server<H: Handler>(service_name: &str, port: u16, handler: H) {
     use iron::Timeouts;
     use std::env;
     use std::time::Duration;
+
     let mut iron = Iron::new(handler);
     iron.threads = 1;
     iron.timeouts = Timeouts {
@@ -750,9 +751,12 @@ fn run_http_server<H: Handler>(service_name: &str, port: u16, handler: H) {
     };
 
     let bind_ip = env::var("BIND_IP").unwrap_or_else(|_| "127.0.0.1".to_string());
+    let bind_port_s = env::var("BIND_PORT").unwrap_or(port.to_string());
+    let bind_port = bind_port_s.parse::<u16>().unwrap_or(port);
+
     println!(
         "HTTP server for {} starting on {}:{}",
-        service_name, &bind_ip, port
+        service_name, &bind_ip, bind_port
     );
-    iron.http(&format!("{}:{}", &bind_ip, port)).unwrap();
+    iron.http(&format!("{}:{}", &bind_ip, bind_port)).unwrap();
 }
