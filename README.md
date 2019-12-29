@@ -136,6 +136,45 @@ filled in from the form data. The *Current Initial State* will be still freshly 
 the event, as well as the three state records, it may alter the *State* to its liking, as well as return *Action* to perform:
 e.g. render the page, redirect to a different URL, etc.
 
+```rust
+    fn event_handler(ri: RspInfo<Self, KeyI32, MyPageAuth>) -> RspEventHandlerResult<Self, KeyI32> {
+        let mut action = rsp10::RspAction::Render;
+        let mut initial_state = ri.initial_state;
+        let mut state = ri.state;
+
+        if ri.event.event == "submit" {
+            state.message = "".to_string();
+            if !ri.state_none {
+                let ev = ri.event;
+                let tgt = &ev.target[..];
+                match tgt {
+                    "_eq" => {
+                        state.txt_text_message =
+                            format!("Pressed eq when state is {}", state.dd_testing);
+                    }
+                    "_lt" => {
+                        state.dd_testing = state.dd_testing - 1;
+                    }
+                    "_gt" => {
+                        if state.dd_testing == -1 {
+                            state.message = format!("Select a value from the right dropdown first");
+                        } else {
+                          state.dd_testing = state.dd_testing + 1;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        RspEventHandlerResult {
+            initial_state,
+            state,
+            action,
+        }
+    }
+
+```
+
 5. Now the server can populate the data that will be used to render the template.
 If the page does not contain any interactive elements, then it is not necessary
 to define it, but since most of the pages actually do interact, you will define it,
