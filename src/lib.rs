@@ -28,6 +28,10 @@ extern crate serde_json;
 extern crate params;
 extern crate rand;
 
+#[macro_use]
+extern crate log;
+extern crate env_logger;
+
 use router::Router;
 
 use iron::prelude::*;
@@ -302,7 +306,7 @@ pub fn req_get_event(req: &mut Request) -> RspEvent {
                 _ => {}
             }
             if &event == "unknown" && &target == "" {
-                println!("post hashmap: {:?}", &hashmap);
+                debug!("post hashmap: {:?}", &hashmap);
                 match hashmap.keys().find(|x| x.starts_with("submit")) {
                     Some(a) => {
                         event = "submit".into();
@@ -524,7 +528,7 @@ pub trait RspState<T, TA>
 where
     Self: std::marker::Sized + serde::Serialize + serde::de::DeserializeOwned + Clone + Debug,
     TA: RspUserAuth,
-    T: serde::Serialize + Clone + Default + serde::de::DeserializeOwned,
+    T: serde::Serialize + Debug + Clone + Default + serde::de::DeserializeOwned,
 {
     fn get_state(req: &mut Request, auth: &TA, key: T) -> Self;
 
@@ -616,11 +620,13 @@ where
         let mut redirect_to = "".to_string();
         let mut reload_state = false;
 
+        /* try to get the current state from json variable */
         let mut maybe_res: Result<serde_json::Value, _> =
             serde_json::from_str(&req_get_state_json_string(req));
 
         let mut maybe_state = if let Ok(mut state_val) = maybe_res {
             if let Ok(ref hashmap) = req.get_ref::<UrlEncodedBody>() {
+                /* augment it from request form fields values */
                 amend_json_value_from_req(&mut state_val, hashmap);
             }
             let form_state_res: Result<Self, _> = serde_json::from_value(state_val);
@@ -641,10 +647,13 @@ where
                 Self::get_key(&auth, &hm, &maybe_state)
             }
         };
-
         if maybe_key.is_none() {
             maybe_key = Self::get_key_from_req(&auth, req);
         }
+
+        debug!("DESERIALIZED STATE: {:#?}", &maybe_state);
+        debug!("DESERIALIZED INITIAL STATE: {:#?}", &maybe_initial_state);
+        debug!("DESERIALIZED KEY: {:#?}", &maybe_key);
 
         let mut key = maybe_key.unwrap_or(Default::default());
 
@@ -799,6 +808,7 @@ fn run_http_server<H: Handler>(service_name: &str, port: u16, handler: H) {
     use iron::Timeouts;
     use std::env;
     use std::time::Duration;
+    env_logger::init();
 
     let mut iron = Iron::new(handler);
     iron.threads = 1;
