@@ -111,6 +111,13 @@ macro_rules! rsp10_gd {
 }
 
 #[macro_export]
+macro_rules! rsp10_data {
+    ( $elt: ident => $gd: ident) => {
+        $gd.insert(stringify!($elt), &$elt);
+    };
+}
+
+#[macro_export]
 macro_rules! rsp10_nested_gd {
     ( $gd: ident, $parent: ident, $i: expr, $elt: ident) => {
         $gd.vector(stringify!($parent), |x| { x.add_field_at($i, stringify!($elt), &$elt); });
