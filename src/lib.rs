@@ -127,7 +127,7 @@ macro_rules! rsp10_nested_gd {
 
 #[macro_export]
 macro_rules! rsp10_select {
-    ( $gd: ident, $elt: ident, $from: expr , $rinfo: ident, $modified: ident) => {
+    ( $elt: ident, $from: expr , $rinfo: ident => $gd: ident, $modified: ident) => {
         let mut $elt = std::rc::Rc::new(std::cell::RefCell::new($from.clone()));
         {
             let mut $elt = $elt.borrow_mut();
