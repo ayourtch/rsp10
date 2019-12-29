@@ -107,6 +107,15 @@ macro_rules! rsp10_gd {
         $gd.item(stringify!($elt), &$elt);
     };
 }
+
+#[macro_export]
+macro_rules! rsp10_nested_gd {
+    ( $gd: ident, $parent: ident, $i: expr, $elt: ident) => {
+        $gd.vector(stringify!($parent), |x| { x.add_field_at($i, stringify!($elt), &$elt); });
+    };
+}
+
+
 #[macro_export]
 macro_rules! rsp10_select {
     ( $gd: ident, $elt: ident, $from: expr , $rinfo: ident, $modified: ident) => {
@@ -272,6 +281,13 @@ macro_rules! rsp10_check {
 }
 
 #[macro_export]
+macro_rules! rsp10_nested_state {
+    ( $gd: ident, $parent: ident, $idx: expr, $rinfo: ident) => {
+      $gd.vector(stringify!($parent), |x| { x.insert_data_at($idx, "state", &$rinfo.state.$parent[$idx]); })
+    };
+}
+
+#[macro_export]
 macro_rules! rsp10_nested_check {
     ( $gd: ident, $parent: ident, $idx: expr, $elt: ident, $rinfo: ident, $modified: ident) => {
         let mut $elt: std::rc::Rc<std::cell::RefCell<HtmlCheck>> =
@@ -284,7 +300,7 @@ macro_rules! rsp10_nested_check {
             $elt.id = format!("{}__{}__{}", stringify!($parent), $idx, stringify!($elt));
             $elt.checked = $rinfo.state.$parent[$idx].$elt;
         }
-        rsp10_gd!($gd, $elt);
+        rsp10_nested_gd!($gd, $parent, $idx, $elt);
     };
 }
 
