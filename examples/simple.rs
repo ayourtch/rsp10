@@ -1,10 +1,10 @@
 #[macro_use]
 extern crate rsp10;
+extern crate chrono;
 extern crate iron;
 extern crate iron_sessionstorage;
-extern crate router;
 extern crate mustache;
-extern crate chrono;
+extern crate router;
 #[macro_use]
 extern crate serde_derive;
 

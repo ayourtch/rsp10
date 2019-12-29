@@ -70,7 +70,7 @@ impl RspState<KeyI32, MyPageAuth> for PageState {
         rsp10_select!(dd_testing, dbh_get_dropdown(ri.state.dd_testing), ri => gd, modified);
         rsp10_select!(ddMyDropdown, dbh_get_dropdown(real_key), ri => gd, modified);
         rsp10_text!(txt_text_message, ri => gd, modified);
-        rsp10_check!(gd, cbTestCheck, ri, modified);
+        rsp10_check!(cbTestCheck, ri => gd, modified);
         rsp10_data!(modified => gd);
 
         Self::fill_data_result(ri, gd)
