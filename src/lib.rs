@@ -653,7 +653,6 @@ where
         Self::default_fill_data_result_with_data(ri, gd.build(data))
     }
 
-    // fn fill_data(ri: RspInfo<Self, T, TA>, gd: &mut RspDataBuilder) -> RspFillDataResult<Self> {
     fn fill_data(ri: RspInfo<Self, T, TA>) -> RspFillDataResult<Self> {
         Self::default_fill_data_result(ri)
     }
@@ -812,7 +811,7 @@ where
             let data = data
                 .insert(
                     "curr_initial_state_json",
-                    &serde_json::to_string(&initial_state).unwrap(),
+                    &serde_json::to_string(&curr_initial_state).unwrap(),
                 )
                 .unwrap();
 
