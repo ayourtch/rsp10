@@ -7,8 +7,8 @@ message: {{state.message}}
 {{/state.message}}
 
 <form method="post">
-{{#txtUsername}} User: {{> html/text }} {{/txtUsername}}
-{{#txtPassword}} Pass: {{> html/pass }} {{/txtPassword}}
+{{#txtUsername}} User (use "user"): {{> html/text }} {{/txtUsername}}
+{{#txtPassword}} Pass (use "pass"): {{> html/pass }} {{/txtPassword}}
 <input type="hidden" name="return_url" value="{{state.return_url}}">
 {{!-- these two fields are critical to include --}}
 <input type="hidden" name="initial_state_json" value="{{initial_state_json}}">
