@@ -53,6 +53,8 @@ pub use html_types::*;
 
 pub mod foobuilder;
 
+pub type RspDataBuilder = foobuilder::FooMapBuilder;
+
 #[macro_export]
 macro_rules! rsp10_page {
     ($router: ident, $url: expr, $name: ident, $file: expr) => {
