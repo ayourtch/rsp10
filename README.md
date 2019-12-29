@@ -19,7 +19,17 @@ This project has a few general principles behind:
 DISCLAIMER: this is work in progress and interfaces are
 subject to change.
 
-# Quick example:
+# Quick example
+
+Before running the examples, make sure your setup has the necessary prerequisites,
+on Ubuntu 18.04 it is:
+
+```
+sudo apt-get install build-essential libsqlite3-dev libpq-dev
+```
+
+If you do not have these installed, the compilation will fail.
+When you have them installed, running the example looks as follows:
 
 ```
 ubuntu@host:~/rsp10$ cargo run --example simple
