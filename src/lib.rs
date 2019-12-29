@@ -342,8 +342,12 @@ pub struct RspPage<T, S: RspState<T>> {
 
 */
 
-fn req_get_initial_state_string(req: &mut Request) -> String {
-    req_get_post_argument(req, "initial_state")
+fn req_get_initial_state_json_string(req: &mut Request) -> String {
+    req_get_post_argument(req, "initial_state_json")
+}
+
+fn req_get_state_json_string(req: &mut Request) -> String {
+    req_get_post_argument(req, "state_json")
 }
 
 fn req_get_post_argument(req: &mut Request, argname: &str) -> String {
@@ -419,6 +423,69 @@ fn http_redirect(redirect_to: &str) -> IronResult<Response> {
     resp.headers.set(ContentType::html());
     resp.headers.set(Location(redirect_to.to_string()));
     Ok(resp)
+}
+
+fn amend_json_value_from_req(v: &mut serde_json::value::Value, req: &HashMap<String, Vec<String>>) {
+    amend_value_x("", v, req);
+}
+
+fn amend_value_x(
+    name_prefix: &str,
+    orig_val: &mut serde_json::value::Value,
+    req: &HashMap<String, Vec<String>>,
+) {
+    use serde_json::Value::*;
+    match orig_val {
+        Object(ref mut obj) => {
+            for (key, mut value) in obj.iter_mut() {
+                let new_prefix = if name_prefix == "" {
+                    format!("{}", key)
+                } else {
+                    format!("{}__{}", name_prefix, key)
+                };
+                amend_value_x(&new_prefix, value, req);
+            }
+        }
+        Array(ref mut arr) => {
+            for (i, elt) in arr.iter_mut().enumerate() {
+                // IDs can't start with number, so always add underscores
+                let new_prefix = format!("{}__{}", name_prefix, i);
+                amend_value_x(&new_prefix, elt, req);
+            }
+        }
+        ref x => {
+            /* overwrite the JSON value from a request hash table */
+            if req.contains_key(name_prefix) {
+                let new_val_src = req[name_prefix].clone();
+                let src = &new_val_src[0];
+                match x {
+                    Bool(ref val) => {
+                        let new_val = match src.as_ref() {
+                            "true" => true,
+                            "on" => true,
+                            "checked" => true,
+                            _ => false,
+                        };
+                        *orig_val = Bool(new_val);
+                    }
+                    String(ref val) => {
+                        *orig_val = String(src.to_string());
+                    }
+                    _ => {
+                        let res: Result<serde_json::Value, _> = serde_json::from_str(src);
+                        if res.is_ok() {
+                            *orig_val = res.unwrap();
+                        } else {
+                            println!(
+                                "Result not ok: {:#?} on '{:#?}' - val {:#?}",
+                                &res, &src, &x
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 pub trait RspUserAuth
@@ -525,12 +592,10 @@ where
     fn get_template_name_auto() -> String {
         use std::any::type_name;
         fn test_type<T: ?Sized>() -> String {
-            // <--- trick is in that bound
-            let test = unsafe { type_name::<T>() };
-            println!("AUTO TYPE:{:?}", test);
-            let components: Vec<String> = test.split("::").map(|x| x.to_string()).collect();
+            let full_type_name = type_name::<T>();
+            let components: Vec<String> =
+                full_type_name.split("::").map(|x| x.to_string()).collect();
             let ret = components[components.len() - 2].to_string();
-            println!("Result: {}", &ret);
             ret
         }
         test_type::<Self>()
@@ -550,29 +615,22 @@ where
 
         let mut redirect_to = "".to_string();
         let mut reload_state = false;
-        let form_state_res: Result<Self, req2struct::Error> = match req.get_ref::<UrlEncodedBody>()
-        {
-            Ok(ref hashmap) => {
-                let res: Result<Self, _> = req2struct::from_map(&hashmap);
-                res
-            }
-            _ => {
-                let hm: HashMap<String, Vec<String>> = HashMap::new();
-                req2struct::from_map(&hm)
-            }
-        };
-        println!("form_state_res: {:#?}", &form_state_res);
 
-        let mut maybe_state = match form_state_res {
-            Ok(s) => Some(s),
-            Err(e) => {
-                println!("Error deserializing state: {:?}", e);
-                None
+        let mut maybe_res: Result<serde_json::Value, _> =
+            serde_json::from_str(&req_get_state_json_string(req));
+
+        let mut maybe_state = if let Ok(mut state_val) = maybe_res {
+            if let Ok(ref hashmap) = req.get_ref::<UrlEncodedBody>() {
+                amend_json_value_from_req(&mut state_val, hashmap);
             }
+            let form_state_res: Result<Self, _> = serde_json::from_value(state_val);
+            form_state_res.ok()
+        } else {
+            None
         };
 
         let maybe_res: Result<Self, serde_json::Error> =
-            serde_json::from_str(&req_get_initial_state_string(req));
+            serde_json::from_str(&req_get_initial_state_json_string(req));
 
         let mut maybe_initial_state = maybe_res.ok();
 
