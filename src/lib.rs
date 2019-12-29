@@ -51,6 +51,8 @@ use std::fmt::Debug;
 mod html_types;
 pub use html_types::*;
 
+pub mod foobuilder;
+
 #[macro_export]
 macro_rules! rsp10_page {
     ($router: ident, $url: expr, $name: ident, $file: expr) => {
@@ -95,11 +97,14 @@ macro_rules! rsp10_nested_option_value_container {
 #[macro_export]
 macro_rules! rsp10_gd {
     ( $gd: ident, $elt: ident) => {
+        /*
         let $gd = || {
             $gd()
                 .insert(stringify!($elt), &$elt.borrow().clone())
                 .unwrap()
         };
+        */
+        $gd.item(stringify!($elt), &$elt);
     };
 }
 #[macro_export]
@@ -145,6 +150,21 @@ macro_rules! rsp10_text {
             $modified = $modified || $elt.highlight;
         }
         rsp10_gd!($gd, $elt);
+    };
+}
+
+#[macro_export]
+macro_rules! rsp10_text_nogd {
+    ($gd: ident, $elt: ident, $rinfo: ident, $modified: ident) => {
+        let mut $elt: std::rc::Rc<std::cell::RefCell<HtmlText>> =
+            std::rc::Rc::new(std::cell::RefCell::new(Default::default()));
+        {
+            let mut $elt = $elt.borrow_mut();
+            $elt.highlight = $rinfo.state.$elt != $rinfo.initial_state.$elt;
+            $elt.value = $rinfo.state.$elt.clone().to_string();
+            $elt.id = format!("{}", stringify!($elt));
+            $modified = $modified || $elt.highlight;
+        }
     };
 }
 
@@ -258,7 +278,8 @@ macro_rules! rsp10_nested_check {
             std::rc::Rc::new(std::cell::RefCell::new(Default::default()));
         {
             let mut $elt = $elt.borrow_mut();
-            $elt.highlight = $rinfo.state.$parent[$idx].$elt != $rinfo.initial_state.$parent[$idx].$elt;
+            $elt.highlight =
+                $rinfo.state.$parent[$idx].$elt != $rinfo.initial_state.$parent[$idx].$elt;
             $modified = $modified || $elt.highlight;
             $elt.id = format!("{}__{}__{}", stringify!($parent), $idx, stringify!($elt));
             $elt.checked = $rinfo.state.$parent[$idx].$elt;
@@ -274,7 +295,8 @@ macro_rules! rsp10_nested_check_nogd {
             std::rc::Rc::new(std::cell::RefCell::new(Default::default()));
         {
             let mut $elt = $elt.borrow_mut();
-            $elt.highlight = $rinfo.state.$parent[$idx].$elt != $rinfo.initial_state.$parent[$idx].$elt;
+            $elt.highlight =
+                $rinfo.state.$parent[$idx].$elt != $rinfo.initial_state.$parent[$idx].$elt;
             $modified = $modified || $elt.highlight;
             $elt.id = format!("{}__{}__{}", stringify!($parent), $idx, stringify!($elt));
             $elt.checked = $rinfo.state.$parent[$idx].$elt;
