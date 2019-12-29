@@ -199,7 +199,7 @@ macro_rules! rsp10_option_text {
 
 #[macro_export]
 macro_rules! rsp10_button {
-    ($gd: ident, $elt: ident, $label: expr) => {
+    ($elt: ident, $label: expr => $gd: ident) => {
         let mut $elt: std::rc::Rc<std::cell::RefCell<HtmlButton>> =
             std::rc::Rc::new(std::cell::RefCell::new(Default::default()));
         {
