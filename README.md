@@ -16,6 +16,37 @@ This project has a few general principles behind:
 4. Clear separation between Access, Logic and Presentation layers.
 5. Allow to customize each layer, but give sane defaults.
 
+DISCLAIMER: this is work in progress and interfaces are
+subject to change.
+
+# Quick example:
+
+```
+ubuntu@host:~/rsp10$ cargo run --example simple
+    Finished dev [unoptimized + debuginfo] target(s) in 0.07s
+     Running `target/debug/examples/simple`
+HTTP server for Simple Example starting on 127.0.0.1:4480
+```
+
+then connect the browser to http://127.0.0.1:4480/ - or, if
+you are running the example on a different machine, bind
+to all addresses:
+
+```
+ubuntu@host:~/rsp10$ BIND_IP=0.0.0.0 cargo run --example simple
+    Finished dev [unoptimized + debuginfo] target(s) in 0.08s
+     Running `target/debug/examples/simple`
+HTTP server for Simple Example starting on 0.0.0.0:4480
+```
+
+You will be prompted to login (user "user" and "pass") and then
+you will see the example 'interactive' page which has a few
+input elements and allows to get the idea of what this is all about.
+
+Did it work ? Interested to know how ? Here's some more to it....
+
+# Foundational Ideas
+
 The basic idea is that each web page can be represented by three
 data elements:
 
@@ -38,7 +69,7 @@ Kept together, these five elements allow to perform any business logic in a comp
 stateless manner - which is a very useful property. It allows less logic for load balancing, as well as allows
 to survive the service restarts and (potentially) upgrades.
 
-So, the lifecycle of the page looks as follows:
+# Life Cycle of a Page
 
 1. The browser performs the GET request, optionally supplying parameters for the *State Key*.
 
@@ -187,6 +218,30 @@ and javascript-free operation with the server side completely controlling the da
 
 In the future more client-side functionality will be added.
 
-DISCLAIMER: this is work in progress and subject to change heavily. 
+# Authentication
+
+I have completely omitted discussing the question of access control, however a curious reader might
+have noticed the "MyPageAuth" type.
+
+Authentication is implemented via a trait, which returns Result<AuthObject, String> - with the successful
+result being the auth object, and the error containing a string with the URL to redirect to. The simplest
+authentication is no authentication:
+
+```rust
+pub struct NoPageAuth {}
+impl rsp10::RspUserAuth for NoPageAuth {
+    fn from_request(_req: &mut iron::Request) -> Result<NoPageAuth, String> {
+        Ok(NoPageAuth {})
+    }
+}
+```
+
+In case the authentication layer returns the error, the processing of the request stops and
+a redirect to the supplied login URL is issued. This way, once you specify the auth type in
+the resource, you do not have to worry about it - you simply get the auth object that you can
+query.
+
+
+
 
 
