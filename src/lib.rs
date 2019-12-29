@@ -253,17 +253,33 @@ macro_rules! rsp10_check {
 
 #[macro_export]
 macro_rules! rsp10_nested_check {
-    ( $gd: ident, $parent: ident, $idx: expr, $elt: ident, $state: ident, $default_state: ident, $modified: ident) => {
+    ( $gd: ident, $parent: ident, $idx: expr, $elt: ident, $rinfo: ident, $modified: ident) => {
         let mut $elt: std::rc::Rc<std::cell::RefCell<HtmlCheck>> =
             std::rc::Rc::new(std::cell::RefCell::new(Default::default()));
         {
             let mut $elt = $elt.borrow_mut();
-            $elt.highlight = $state.$parent[$idx].$elt != $default_state.$parent[$idx].$elt;
+            $elt.highlight = $rinfo.state.$parent[$idx].$elt != $rinfo.initial_state.$parent[$idx].$elt;
             $modified = $modified || $elt.highlight;
             $elt.id = format!("{}__{}__{}", stringify!($parent), $idx, stringify!($elt));
-            $elt.checked = $state.$parent[$idx].$elt;
+            $elt.checked = $rinfo.state.$parent[$idx].$elt;
         }
-        $gd.push($elt.clone());
+        rsp10_gd!($gd, $elt);
+    };
+}
+
+#[macro_export]
+macro_rules! rsp10_nested_check_nogd {
+    ( $gd: ident, $parent: ident, $idx: expr, $elt: ident, $rinfo: ident, $modified: ident) => {
+        let mut $elt: std::rc::Rc<std::cell::RefCell<HtmlCheck>> =
+            std::rc::Rc::new(std::cell::RefCell::new(Default::default()));
+        {
+            let mut $elt = $elt.borrow_mut();
+            $elt.highlight = $rinfo.state.$parent[$idx].$elt != $rinfo.initial_state.$parent[$idx].$elt;
+            $modified = $modified || $elt.highlight;
+            $elt.id = format!("{}__{}__{}", stringify!($parent), $idx, stringify!($elt));
+            $elt.checked = $rinfo.state.$parent[$idx].$elt;
+        }
+        // rsp10_gd!($gd, $elt);
     };
 }
 
