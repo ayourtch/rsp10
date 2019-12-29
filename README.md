@@ -1,1 +1,192 @@
-# rspten
+# rsp10 - a better version of RSPten
+
+This is a work in progress rewrite of the web framework
+the ideas of which I am using in multiple non-opensource
+personal projects.
+
+I started working on the ideas for this a couple of years ago,
+when the choice of frameworks was pretty scarce, and also
+the ones that were there, were requiring stable rust.
+
+This project has a few general principles behind:
+
+1. No unsafe {} blocks.
+2. Only stable Rust.
+3. Completely stateless on the server side.
+4. Clear separation between Access, Logic and Presentation layers.
+5. Allow to customize each layer, but give sane defaults.
+
+The basic idea is that each web page can be represented by three
+data elements:
+
+1. *State Key*: This is a (maybe optional) set of arguments passed via the query string that
+   define the initial state for the page when it is being loaded. A very simple key is an
+   Option<i32> being the optional ID of an entity to edit.
+2. *Initial State*: This is a record containing the state of the page, which is initially
+   retrieved based on *State Key* before being sent to renderer.
+3. *State*: This is the *current* state, which may or may not be different from
+   the *Initial State*, the difference is expected to be due to the user changing it
+   by typing in the text elements, selecting different dropdowns, etc.
+
+However, what happens if someone modifies the data in question in the background ?
+For this reason we need a fourth data field: *Current Initial State* - this is the "Initial State",
+however, freshly recalculated before each pass of business logic.
+
+In order to perform any business logic we also need a fifth component, and that is *Event*.
+
+Kept together, these five elements allow to perform any business logic in a completely
+stateless manner - which is a very useful property. It allows less logic for load balancing, as well as allows
+to survive the service restarts and (potentially) upgrades.
+
+So, the lifecycle of the page looks as follows:
+
+1. The browser performs the GET request, optionally supplying parameters for the *State Key*.
+
+2. The server converts the query string arguments into *State Key*. It uses two parts for it: the definition of the page key,
+and optionally the method for converting the querystring arguments into the key. The state key for a page
+can be defined as follows (in this example the key is a simple integer):
+
+```rust
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct KeyI32 {
+    id: Option<i32>,
+}
+```
+
+Note, that with the above definition, passing the "id=XXX" (where XXX is something that parses as i32) will automatically populate the
+state key, however it is possible to have the custom method as well, for example like this:
+
+```rust
+    fn get_key(
+        auth: &MyPageAuth,
+        args: &HashMap<String, Vec<String>>,
+        maybe_state: &Option<PageState>,
+    ) -> Option<KeyI32> {
+        Some(KeyI32 {
+            id: args.get("id").map_or(None, |x| x[0].parse::<i32>().ok()),
+        })
+    }
+```
+
+3. Initial request: The server uses the key to retrieve the *Initial State*, which again has two parts: a struct holding it and method
+that populates it. Here is a sample struct:
+
+```rust
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct PageState {
+    message: String,
+    dd_testing: i32,
+    txt_text_message: String,
+    cbTestCheck: bool,
+    ddMyDropdown: i32,
+}
+```
+
+The method that returns the *Initial State*, based on the *State Key* must be idempotent:
+
+```rust
+    fn get_state(req: &mut Request, auth: &MyPageAuth, key: KeyI32) -> PageState {
+        println!("default state for PageState with key: {:?}", &key);
+        PageState {
+            dd_testing: -1,
+            txt_text_message: "test".to_string(),
+            ddMyDropdown: key.id.unwrap_or(-1),
+            cbTestCheck: true,
+            ..Default::default()
+        }
+    }
+
+```
+
+If we are processing an update, then the form data will contain the *Initial State*, as well as *State*, which will be
+filled in from the form data. The *Current Initial State* will be still freshly filled as above.
+
+4. Handle the event. The event handler is called on each page update, including the initial load. Based on
+the event, as well as the three state records, it may alter the *State* to its liking, as well as return *Action* to perform:
+e.g. render the page, redirect to a different URL, etc.
+
+5. Now the server can populate the data that will be used to render the template.
+If the page does not contain any interactive elements, then it is not necessary
+to define it, but since most of the pages actually do interact, you will define it,
+something along these lines:
+
+```rust
+    fn fill_data(ri: RspInfo<Self, KeyI32, MyPageAuth>) -> RspFillDataResult<Self> {
+        let mut modified = false;
+        let mut ri = ri;
+        let mut gd = RspDataBuilder::new();
+        let real_key = ri.key.id.unwrap_or(-1);
+        println!("{:?}", &ri.state);
+
+        rsp10_button!(btnTest, "Test button" => gd);
+        rsp10_select!(dd_testing, dbh_get_dropdown(ri.state.dd_testing), ri => gd, modified);
+        rsp10_select!(ddMyDropdown, dbh_get_dropdown(real_key), ri => gd, modified);
+        rsp10_text!(txt_text_message, ri => gd, modified);
+        rsp10_check!(gd, cbTestCheck, ri, modified);
+        rsp10_data!(modified => gd);
+
+        Self::fill_data_result(ri, gd)
+    }
+```
+
+This method effectively translates the higher-level abstractions of the state into
+more visual data for the template rendering - dropdowns, checkboxes, text elements,
+and just simple data. 
+
+You will notice most of the operations are hidden behind macros - this is to minimize
+the clutter, because behind the scenes the "state.SomeElement" value, which may be
+an i32, for example, is rendered into a "SomeElement" Rc<RefCell<HtmlElement>>, which 
+can be modified within the *fill_data()* code, if the complex UI element interactions
+require it.
+
+After finishing the preparation the RspDataBuilder object
+is passed to the *Self::fill_data_result()* along with the "RspInfo" structure
+(which contains a lot of interesting data about the request), which compiles
+the Mustache data builder and returns the RspFillDataResult, which is used to render the templates.
+
+6. Compile the Mustache template file. The file name is normally derived automatically,
+but you can override it on a per-page basis. Also - for simplicity of debugging the compile
+currently happens on each page load, but it is trivial to compile the templates once upon the start.
+The option to do so will may be some time in the future.
+
+The typical template file will contain HTML forms, with the template looking as follows:
+
+```
+<form method="post">
+{{#btnTest}} {{> html/submit}} {{/btnTest}}
+{{#ddMyDropdown}} {{>html/select}} {{/ddMyDropdown}}
+{{#dd_testing}} {{>html/select}} {{/dd_testing}}
+{{#cbTestCheck}} {{> html/checkbox }} {{/cbTestCheck}}
+{{#txt_text_message}} {{> html/text }} {{/txt_text_message}}
+<input type="hidden" name="initial_state_json" value="{{initial_state_json}}">
+<input type="hidden" name="state_json" value="{{state_json}}">
+<input type="submit" name="submit_lt" value="<">
+<input type="submit" name="submit_eq" value="=">
+<input type="submit" name="submit_gt" value=">">
+</form>
+```
+
+Notice the '{{#foo}} ... {{/foo}}' pairs, with {{> html/something}} inside.
+While it looks like some cool markup - this is simply Mustache syntax to "dive in"
+one level into the element. It allows to have a very uniform yet easily customizable
+look and feel for the elements. As you see, you can also code regular HTML with no template
+data whatsoever.
+
+However, note the two fields "*initial_state_json*" and "*state_json*" - they are
+essential for the correct functioning, and carry the state information about the page.
+
+7. The rendered page is sent to the user.
+
+8. User performs some manipulations, the client side code potentially does something as well,
+and eventualy a changed data is being submitted. At this point the cycle repeats from the beginning.
+
+
+You will notice that current implementation is completely Javascript-free: this is obviously
+not the final state of affairs, but one of the goals of this framework was graceful fallback,
+and javascript-free operation with the server side completely controlling the data flow.
+
+In the future more client-side functionality will be added.
+
+DISCLAIMER: this is work in progress and subject to change heavily. 
+
+
