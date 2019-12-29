@@ -648,6 +648,12 @@ where
         Self::default_fill_data_result_with_data(ri, data)
     }
 
+    fn fill_data_result(ri: RspInfo<Self, T, TA>, gd: RspDataBuilder) -> RspFillDataResult<Self> {
+        let data = MapBuilder::new();
+        Self::default_fill_data_result_with_data(ri, gd.build(data))
+    }
+
+    // fn fill_data(ri: RspInfo<Self, T, TA>, gd: &mut RspDataBuilder) -> RspFillDataResult<Self> {
     fn fill_data(ri: RspInfo<Self, T, TA>) -> RspFillDataResult<Self> {
         Self::default_fill_data_result(ri)
     }
