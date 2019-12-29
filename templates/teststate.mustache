@@ -1,0 +1,48 @@
+<html>
+<head>
+<script>
+</script>
+</head>
+
+<body>
+
+<h1>teststate template</h1>
+<br/>
+{{#state.message}}
+<font color="red">{{state.message}}</font>
+{{/state.message}}
+
+<br/>
+{{^state_key.id}}
+No key was supplied. Try adding "?id=XXX" to the url, with XXX being a small number.
+{{/state_key.id}}
+{{#state_key.id}}
+key = {{state_key.id}}
+{{/state_key.id}}
+
+
+<pre>
+State key in JSON: {{state_key_json}}
+Initial state in JSON: {{initial_state_json}}
+Current state in JSON: {{state_json}}
+</pre>
+
+{{#modified}}Record has been modified{{/modified}}
+
+<form method="post">
+{{#btnTest}} {{> html/submit}} {{/btnTest}}
+{{#ddMyDropdown}} {{>html/select}} {{/ddMyDropdown}}
+{{#dd_testing}} {{>html/select}} {{/dd_testing}}
+{{#cbTestCheck}} {{> html/checkbox }} {{/cbTestCheck}}
+{{#txt_text_message}} {{> html/text }} {{/txt_text_message}}
+<input type="hidden" name="initial_state_json" value="{{initial_state_json}}">
+<input type="hidden" name="state_json" value="{{state_json}}">
+<input type="submit" name="submit_lt" value="<">
+<input type="submit" name="submit_eq" value="=">
+<input type="submit" name="submit_gt" value=">">
+</form>
+<a href="/logout">logout</a>
+
+</body>
+</html>
+
