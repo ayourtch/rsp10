@@ -390,11 +390,11 @@ pub fn req_get_event(req: &mut Request) -> RspEvent {
             }
         }
         Err(ref e) => {
-            println!("req_get_event err: {:?}", e);
+            debug!("req_get_event err: {:?}", e);
         }
     };
     let retev = RspEvent { event, target };
-    println!("Event: {:?}", &retev);
+    debug!("Event: {:?}", &retev);
     retev
 }
 /*
@@ -431,7 +431,7 @@ fn req_get_post_argument(req: &mut Request, argname: &str) -> String {
             }
         }
         Err(ref e) => {
-            println!("req_get_post_argument('{}') err = {:?}", argname, e);
+            debug!("req_get_post_argument('{}') err = {:?}", argname, e);
             String::new()
         }
     };
@@ -448,7 +448,7 @@ pub enum RspAction<T> {
 
 pub fn maybe_compile_template(name: &str) -> Result<Template, mustache::Error> {
     let fname = format!("./templates/{}.mustache", name);
-    println!("Compiling: {}", &fname);
+    debug!("Compiling template: {}", &fname);
     mustache::compile_path(fname)
 }
 
