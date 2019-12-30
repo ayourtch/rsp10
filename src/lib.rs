@@ -472,7 +472,7 @@ macro_rules! get_page_template {
 }
 
 pub fn build_response(template: Template, data: MapBuilder) -> iron::Response {
-    use iron::headers::ContentType;
+    use iron::headers::{Connection, ContentType};
     let mut bytes = vec![];
     let data_built = data.build();
     template
@@ -482,6 +482,7 @@ pub fn build_response(template: Template, data: MapBuilder) -> iron::Response {
 
     let mut resp = Response::with((status::Ok, payload));
     resp.headers.set(ContentType::html());
+    resp.headers.set(Connection::close());
     resp
 }
 
