@@ -36,8 +36,12 @@ impl RspState<String, MyPageAuth> for PageState {
     fn fill_data(ri: RspInfo<Self, String, MyPageAuth>) -> RspFillDataResult<Self> {
         let mut modified = false;
         let mut gd = RspDataBuilder::new();
+        let env_username = std::env::var("TEST_USERNAME").ok();
+        let env_password = std::env::var("TEST_PASSWORD").ok();
         rsp10_text!(txtUsername, ri => gd, modified);
         rsp10_text!(txtPassword, ri => gd, modified);
+        rsp10_data!(env_username => gd);
+        rsp10_data!(env_password => gd);
         Self::fill_data_result(ri, gd)
     }
 
@@ -48,7 +52,12 @@ impl RspState<String, MyPageAuth> for PageState {
         if ri.event.event == "submit" {
             println!("Submit on login page");
             /* replace this "validation" with something more meaningful */
-            if &state.txtUsername == "user" && &state.txtPassword == "pass" {
+            let env_username = std::env::var("TEST_USERNAME").ok();
+            let env_password = std::env::var("TEST_PASSWORD").ok();
+
+            if Some(state.txtUsername.clone()) == env_username
+                && Some(state.txtPassword.clone()) == env_password
+            {
                 let mut groups: HashMap<String, bool> = HashMap::new();
                 let username = state.txtUsername.clone();
                 println!("Success!");

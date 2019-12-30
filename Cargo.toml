@@ -31,6 +31,7 @@ r2d2-diesel = "*"
 num_cpus = "*"
 log = "*"
 env_logger = "*"
+dotenv = "*"
 
 
 

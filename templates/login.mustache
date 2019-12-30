@@ -7,8 +7,22 @@ message: {{state.message}}
 {{/state.message}}
 
 <form method="post">
-{{#txtUsername}} User (use "user"): {{> html/text }} {{/txtUsername}}
-{{#txtPassword}} Pass (use "pass"): {{> html/pass }} {{/txtPassword}}
+
+Username
+{{#env_username}}(use '{{env_username}}') {{/env_username}}
+{{^env_username}} (set by setting "TEST_USERNAME" environment variable) {{/env_username}}
+:
+{{#txtUsername}} {{> html/text }} {{/txtUsername}}
+
+<br/>
+Password
+{{#env_password}}(use whatever you had set){{/env_password}}
+{{^env_password}} (set by setting "TEST_PASSWORD" environment variable) {{/env_password}}
+:
+{{#txtPassword}} {{> html/pass }} {{/txtPassword}}
+
+<br/>
+
 <input type="hidden" name="return_url" value="{{state.return_url}}">
 {{!-- these two fields are critical to include --}}
 <input type="hidden" name="initial_state_json" value="{{initial_state_json}}">

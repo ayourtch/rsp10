@@ -7,13 +7,14 @@ extern crate mustache;
 extern crate router;
 #[macro_use]
 extern crate serde_derive;
+extern crate dotenv;
 
 mod simple_pages;
 
 fn main() {
+    dotenv::dotenv().ok();
+
     let router = simple_pages::get_router();
-
     let mut s = rsp10::RspServer::new();
-
     s.run(router, "Simple Example", 4480);
 }
