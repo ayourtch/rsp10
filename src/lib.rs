@@ -885,7 +885,9 @@ fn run_http_server<H: Handler>(service_name: &str, port: u16, handler: H) {
     env_logger::init();
 
     let mut iron = Iron::new(handler);
-    iron.threads = 1;
+    let threads_s = env::var("IRON_HTTP_THREADS").unwrap_or("1".to_string());
+    let threads = threads_s.parse::<usize>().unwrap_or(1);
+    iron.threads = threads;
     iron.timeouts = Timeouts {
         keep_alive: Some(Duration::from_millis(10)),
         read: Some(Duration::from_secs(10)),
