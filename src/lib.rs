@@ -599,7 +599,17 @@ where
 {
     fn get_state(req: &mut Request, auth: &TA, key: T) -> Self;
 
-    fn event_handler(ri: RspInfo<Self, T, TA>) -> RspEventHandlerResult<Self, T>;
+    fn event_handler(ri: RspInfo<Self, T, TA>) -> RspEventHandlerResult<Self, T> {
+        let mut action = RspAction::Render;
+        let mut initial_state = ri.initial_state;
+        let mut state = ri.state;
+
+        RspEventHandlerResult {
+            initial_state,
+            state,
+            action,
+        }
+    }
 
     fn get_key(
         auth: &TA,
