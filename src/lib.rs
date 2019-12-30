@@ -730,7 +730,7 @@ where
 
         let event = req_get_event(req);
 
-        let curr_initial_state = Self::get_state(req, &auth, key.clone());
+        let mut curr_initial_state = Self::get_state(req, &auth, key.clone());
         let state_none = maybe_state.is_none();
         let initial_state_none = maybe_initial_state.is_none();
         let initial_state = maybe_initial_state.unwrap_or(curr_initial_state.clone());
@@ -766,6 +766,7 @@ where
         };
         if redirect_to.is_empty() {
             if reload_state {
+                curr_initial_state = Self::get_state(req, &auth, key.clone());
                 let st = curr_initial_state.clone();
                 println!("Reload state");
                 initial_state = st.clone();
