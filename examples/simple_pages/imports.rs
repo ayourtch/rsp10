@@ -9,6 +9,7 @@ pub use rsp10::RspEvent;
 
 pub use std::collections::HashMap;
 
+#[derive(Default, Serialize, Deserialize, Debug, Clone)]
 pub struct NoPageAuth {}
 impl rsp10::RspUserAuth for NoPageAuth {
     fn from_request(_req: &mut iron::Request) -> Result<NoPageAuth, String> {

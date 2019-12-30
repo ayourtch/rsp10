@@ -593,7 +593,7 @@ pub struct RspFillDataResult<R> {
 pub trait RspState<T, TA>
 where
     Self: std::marker::Sized + serde::Serialize + serde::de::DeserializeOwned + Clone + Debug,
-    TA: RspUserAuth,
+    TA: RspUserAuth + serde::Serialize,
     T: serde::Serialize + Debug + Clone + Default + serde::de::DeserializeOwned,
 {
     fn get_state(req: &mut Request, auth: &TA, key: T) -> Self;
@@ -793,6 +793,7 @@ where
             let initial_state = r.initial_state;
             let state = r.state;
             let data = r.data;
+            let data = data.insert("auth", &auth).unwrap();
             let data = data.insert("state", &state).unwrap();
             let data = data.insert("state_key", &key).unwrap();
             let data = data.insert("initial_state", &initial_state).unwrap();
