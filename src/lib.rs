@@ -486,7 +486,7 @@ pub fn build_response(template: Template, data: MapBuilder) -> iron::Response {
     resp
 }
 
-fn http_redirect(redirect_to: &str) -> IronResult<Response> {
+pub fn http_redirect(redirect_to: &str) -> IronResult<Response> {
     use iron::headers::ContentType;
     use iron::headers::Location;
     // let mut resp = Response::with((status::TemporaryRedirect, $redirect_to.clone()));
