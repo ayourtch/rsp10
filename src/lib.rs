@@ -866,7 +866,7 @@ impl RspServer {
         self.default_secret = Some(new_secret);
     }
 
-    pub fn run(&mut self, router: Router, service_name: &str, port: u16) {
+    pub fn run<H: Handler>(&mut self, main_handler: H, service_name: &str, port: u16) {
         use mount::Mount;
         use rand::random;
         use staticfile::Static;
@@ -877,7 +877,7 @@ impl RspServer {
         }
 
         let mut mount = Mount::new();
-        mount.mount("/", router);
+        mount.mount("/", main_handler);
         mount.mount("/static/", Static::new(Path::new("staticfiles/")));
 
         let my_secret = self.default_secret.clone().unwrap_or(rand_bytes());
