@@ -1,4 +1,4 @@
-# rsp10 - a better version of RSPten
+# rsp10 - (Rust Server Pages) - a Rust Web Framework
 
 This is a work in progress rewrite of the web framework
 the ideas of which I am using in multiple non-opensource
