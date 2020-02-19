@@ -72,6 +72,7 @@ impl RspState<KeyI32, MyPageAuth> for PageState {
         rsp10_text!(txt_text_message, ri => gd, modified);
         rsp10_check!(cbTestCheck, ri => gd, modified);
         rsp10_data!(modified => gd);
+        gd.insert_fn("FooFunction", |x| format!(" XXX {} XXX", x));
 
         Self::fill_data_result(ri, gd)
     }

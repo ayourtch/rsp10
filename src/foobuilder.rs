@@ -37,6 +37,17 @@ impl FooItemBuilder {
         })
     }
 
+    fn insert_fn<F>(&mut self, f: F)
+    where
+        F: FnMut(String) -> String + Clone + Send + Sync + 'static,
+    {
+        let fn2 = RefCell::new(Box::new(f));
+        self.add({
+            let name = self.name.to_owned();
+            move |x: MapBuilder| x.insert_fn(name.clone(), fn2.clone().into_inner())
+        })
+    }
+
     fn insert_data<T>(&mut self, data: &T)
     where
         T: serde::Serialize + Clone,
@@ -185,6 +196,19 @@ impl FooMapBuilder {
         let mut builder = builder.or_insert_with(|| FooAnyBuilder::Item(FooItemBuilder::new(name)));
         if let FooAnyBuilder::Item(b) = builder {
             b.insert_data(data);
+        } else {
+            panic!("wrong builder");
+        }
+    }
+
+    pub fn insert_fn<F>(&mut self, name: &str, data: F)
+    where
+        F: FnMut(String) -> String + Clone + Send + Sync + 'static,
+    {
+        let builder = self.builders.entry(name.to_string());
+        let mut builder = builder.or_insert_with(|| FooAnyBuilder::Item(FooItemBuilder::new(name)));
+        if let FooAnyBuilder::Item(b) = builder {
+            b.insert_fn(data);
         } else {
             panic!("wrong builder");
         }

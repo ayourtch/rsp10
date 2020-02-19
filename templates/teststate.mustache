@@ -17,7 +17,7 @@
 No key was supplied. Try adding "?id=XXX" to the url, with XXX being a small number.
 {{/state_key.id}}
 {{#state_key.id}}
-key = {{state_key.id}}
+key = {{#FooFunction}}{{state_key.id}}{{/FooFunction}}
 {{/state_key.id}}
 
 
