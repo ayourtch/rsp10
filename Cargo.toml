@@ -11,7 +11,7 @@ iron = "*"
 persistent = "*"
 regex = "*"
 lazy_static = "*"
-mustache = "*"
+mustache = { git = "https://github.com/ayourtch/rust-mustache" }
 iron-sessionstorage = { git = "https://github.com/ayourtch/iron-sessionstorage.git" }
 diesel = { version = "1.1.*", features = ["postgres", "sqlite", "huge-tables", "chrono"] }
 chrono = { version = "*", features = ["serde"] }

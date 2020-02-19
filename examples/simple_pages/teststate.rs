@@ -72,7 +72,12 @@ impl RspState<KeyI32, MyPageAuth> for PageState {
         rsp10_text!(txt_text_message, ri => gd, modified);
         rsp10_check!(cbTestCheck, ri => gd, modified);
         rsp10_data!(modified => gd);
-        gd.insert_fn("FooFunction", |x| format!(" XXX {} XXX", x));
+        gd.insert_fn2("FooFunction", |x, render| {
+            eprintln!("FooFunction before render: {:?}", &x);
+            let res = render(x);
+            eprintln!("FooFunction after render: {:?}", &res);
+            res
+        });
 
         Self::fill_data_result(ri, gd)
     }
@@ -99,7 +104,7 @@ impl RspState<KeyI32, MyPageAuth> for PageState {
                         if state.dd_testing == -1 {
                             state.message = format!("Select a value from the right dropdown first");
                         } else {
-                          state.dd_testing = state.dd_testing + 1;
+                            state.dd_testing = state.dd_testing + 1;
                         }
                     }
                     _ => {}
