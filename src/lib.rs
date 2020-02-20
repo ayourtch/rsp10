@@ -333,13 +333,6 @@ macro_rules! rsp10_nested_check_nogd {
     };
 }
 
-#[macro_export]
-macro_rules! data_insert {
-    ($data: ident, $elt: ident) => {
-        $data = $data.insert(stringify!($elt), &$elt).unwrap();
-    };
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RspEvent {
     pub event: String,
