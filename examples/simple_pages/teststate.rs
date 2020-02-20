@@ -73,8 +73,14 @@ impl RspState<KeyI32, MyPageAuth> for PageState {
         rsp10_check!(cbTestCheck, ri => gd, modified);
         rsp10_data!(modified => gd);
         gd.insert_fn2("FooFunction", |x, render| {
-            eprintln!("FooFunction before render: {:?}", &x);
-            let res = render(x);
+            let rendered_val = render(x);
+            let rendered_val = if &rendered_val == "3" {
+                render("".to_string()); // reset the flag
+                format!("unrendered because three")
+            } else {
+                format!("rendered: {}", rendered_val)
+            };
+            let res = format!("{} - {}", "{{state_key.id}}", rendered_val);
             eprintln!("FooFunction after render: {:?}", &res);
             res
         });
