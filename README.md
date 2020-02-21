@@ -6,10 +6,11 @@ personal projects.
 
 I started working on the ideas for this a couple of years ago,
 when the choice of frameworks was pretty scarce, and also
-the ones that were there, were requiring stable rust.
+the ones that were there, were requiring nightly rust.
 
 This project has a few general principles behind:
 
+0. Allow for purely server-based logic.
 1. No unsafe {} blocks.
 2. Only stable Rust.
 3. Completely stateless on the server side.
@@ -29,7 +30,7 @@ sudo apt-get install build-essential libsqlite3-dev libpq-dev
 ```
 
 If you do not have these installed, the compilation will fail.
-When you have them installed, running the example looks as follows:
+When you have them installed, clone this repository and then run the example:
 
 ```
 ubuntu@host:~/rsp10$ cargo run --example simple
