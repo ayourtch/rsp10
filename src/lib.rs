@@ -612,7 +612,7 @@ where
         None
     }
 
-    fn get_key_from_req(auth: &TA, req: &mut Request) -> Option<T> {
+    fn default_get_key_from_req(auth: &TA, req: &mut Request) -> Option<T> {
         use urlencoded::UrlEncodedQuery;
         let req_res: Result<T, req2struct::Error> = match req.get_ref::<UrlEncodedQuery>() {
             Ok(ref hashmap) => {
@@ -625,6 +625,10 @@ where
             }
         };
         req_res.ok()
+    }
+
+    fn get_key_from_req(auth: &TA, req: &mut Request) -> Option<T> {
+        Self::default_get_key_from_req(auth, req)
     }
 
     fn default_event_handler_result(ri: RspInfo<Self, T, TA>) -> RspEventHandlerResult<Self, T> {
