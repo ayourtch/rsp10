@@ -692,6 +692,28 @@ where
         }
     }
 
+    fn default_response_finalize(ri: &RspInfo<Self, T, TA>, resp: &mut iron::Response) {
+        use iron::headers::{Connection, ContentType};
+        resp.headers.set(ContentType::html());
+        resp.headers.set(Connection::close());
+    }
+
+    fn response_finalize(ri: &RspInfo<Self, T, TA>, resp: &mut iron::Response) {
+        Self::default_response_finalize(ri, resp)
+    }
+
+    fn build_response(template: Template, data: MapBuilder) -> iron::Response {
+        let mut bytes = vec![];
+        let data_built = data.build();
+        template
+            .render_data(&mut bytes, &data_built)
+            .expect("Failed to render");
+        let payload = std::str::from_utf8(&bytes).unwrap();
+
+        let mut resp = Response::with((status::Ok, payload));
+        resp
+    }
+
     fn auth_handler(req: &mut Request, auth: TA) -> IronResult<Response> {
         // use iron::headers::ContentType;
         use urlencoded::{UrlEncodedBody, UrlEncodedQuery};
@@ -828,7 +850,20 @@ where
                 )
                 .unwrap();
 
-            let resp = build_response(template, data);
+            let ri = RspInfo {
+                req: req,
+                auth: &auth,
+                event: &event,
+                key: &key,
+                state,
+                state_none,
+                initial_state,
+                initial_state_none,
+                curr_initial_state: &curr_initial_state,
+            };
+            let mut resp = Self::build_response(template, data);
+
+            Self::response_finalize(&ri, &mut resp);
             Ok(resp)
         } else {
             http_redirect(&redirect_to)
