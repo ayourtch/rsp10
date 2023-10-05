@@ -25,7 +25,6 @@ extern crate serde;
 extern crate serde_json;
 
 // #[macro_use]
-extern crate params;
 extern crate rand;
 
 #[macro_use]
