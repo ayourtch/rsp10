@@ -241,7 +241,7 @@ macro_rules! rsp10_text_escape_backtick {
 #[macro_export]
 macro_rules! rsp10_nested_text {
     ( $gd: ident, $parent: ident, $idx: expr, $elt: ident, $rinfo: ident, $modified: ident) => {
-        let mut $elt: std::rc::Rc<std::cell::RefCell<HtmlCheck>> =
+        let mut $elt: std::rc::Rc<std::cell::RefCell<HtmlText>> =
             std::rc::Rc::new(std::cell::RefCell::new(Default::default()));
         {
             let mut $elt = $elt.borrow_mut();
