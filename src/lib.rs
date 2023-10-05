@@ -240,17 +240,19 @@ macro_rules! rsp10_text_escape_backtick {
 
 #[macro_export]
 macro_rules! rsp10_nested_text {
-    ( $gd: ident, $parent: ident, $idx: expr, $elt: ident, $state: ident, $default_state: ident, $modified: ident) => {
-        let mut $elt: std::rc::Rc<std::cell::RefCell<HtmlText>> =
+    ( $gd: ident, $parent: ident, $idx: expr, $elt: ident, $rinfo: ident, $modified: ident) => {
+        let mut $elt: std::rc::Rc<std::cell::RefCell<HtmlCheck>> =
             std::rc::Rc::new(std::cell::RefCell::new(Default::default()));
         {
             let mut $elt = $elt.borrow_mut();
-            $elt.highlight = $state.$parent[$idx].$elt != $default_state.$parent[$idx].$elt;
-            $elt.value = $state.$parent[$idx].$elt.clone().to_string();
-            $elt.id = format!("{}__{}__{}", stringify!($parent), $idx, stringify!($elt));
+            $elt.highlight =
+                $rinfo.state.$parent[$idx].$elt != $rinfo.initial_state.$parent[$idx].$elt;
             $modified = $modified || $elt.highlight;
+            $elt.id = format!("{}__{}__{}", stringify!($parent), $idx, stringify!($elt));
+            $elt.checked = $rinfo.state.$parent[$idx].$elt;
+            $elt.value = $rinfo.state.$parent[$idx].$elt.clone().to_string();
         }
-        $gd.push($elt.clone());
+        rsp10_nested_gd!($gd, $parent, $idx, $elt);
     };
 }
 
