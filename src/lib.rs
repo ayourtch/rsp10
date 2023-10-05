@@ -249,7 +249,6 @@ macro_rules! rsp10_nested_text {
                 $rinfo.state.$parent[$idx].$elt != $rinfo.initial_state.$parent[$idx].$elt;
             $modified = $modified || $elt.highlight;
             $elt.id = format!("{}__{}__{}", stringify!($parent), $idx, stringify!($elt));
-            $elt.checked = $rinfo.state.$parent[$idx].$elt;
             $elt.value = $rinfo.state.$parent[$idx].$elt.clone().to_string();
         }
         rsp10_nested_gd!($gd, $parent, $idx, $elt);
