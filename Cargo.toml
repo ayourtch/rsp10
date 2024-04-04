@@ -1,36 +1,5 @@
-[package]
-name = "rsp10"
-version = "0.1.0"
-authors = ["Andrew Yourtchenko <ayourtch@gmail.com>"]
-
-[dependencies]
-req2struct = { git = "https://github.com/ayourtch/req2struct.git" }
-# req2struct = { path = "../req2struct" }
-
-iron = "*"
-persistent = "*"
-regex = "*"
-lazy_static = "*"
-mustache = { git = "https://github.com/ayourtch/rust-mustache" }
-iron-sessionstorage = { git = "https://github.com/ayourtch/iron-sessionstorage.git" }
-diesel = { version = "1.1.*", features = ["postgres", "sqlite", "huge-tables", "chrono"] }
-chrono = { version = "*", features = ["serde"] }
-serde_json = "*"
-serde = "*"
-serde_derive = "*"
-arrayref = "*"
-base64 = "*"
-rand = "0.6"
-urlencoded = "*"
-router = "*"
-mount = "*"
-staticfile = "*"
-r2d2 = "*"
-r2d2-diesel = "*"
-num_cpus = "*"
-log = "*"
-env_logger = "*"
-dotenv = "*"
-
-
+[workspace]
+members = ["rsp10"
+]
+resolver = "2"
 
