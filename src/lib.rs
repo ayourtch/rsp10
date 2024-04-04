@@ -142,18 +142,19 @@ macro_rules! rsp10_select {
 
 #[macro_export]
 macro_rules! rsp10_nested_select {
-    ( $gd: ident, $parent: ident, $idx: expr, $elt: ident, $from: expr , $state: ident, $default_state: ident, $modified: ident) => {
+    ( $gd: ident, $parent: ident, $idx: expr, $elt: ident, $from: expr , $rinfo: ident, $modified: ident) => {
         let mut $elt = std::rc::Rc::new(std::cell::RefCell::new($from.clone()));
         {
             let mut $elt = $elt.borrow_mut();
-            $elt.set_selected_value(&mut $state.$parent[$idx].$elt);
-            $elt.highlight = $state.$parent[$idx].$elt != $default_state.$parent[$idx].$elt;
+            $elt.set_selected_value(&mut $rinfo.state.$parent[$idx].$elt);
+            $elt.highlight = $rinfo.state.$parent[$idx].$elt != $rinfo.initial_state.$parent[$idx].$elt;
             $elt.id = format!("{}__{}__{}", stringify!($parent), $idx, stringify!($elt));
             $modified = $modified || $elt.highlight;
         }
-        $gd.push($elt.clone());
+        rsp10_nested_gd!($gd, $parent, $idx, $elt);
     };
 }
+
 
 #[macro_export]
 macro_rules! rsp10_text {
