@@ -547,6 +547,26 @@ fn amend_value_x(
                         }
                     }
                 }
+            } else {
+                // This is a workaround against checkboxes unchecked values not being passed
+                let name_prefix = &format!("{}_sentinel", &name_prefix);
+                if req.contains_key(name_prefix) {
+                    let new_val_src = req[name_prefix].clone();
+                    let src = &new_val_src[0];
+                    match x {
+                        Bool(ref val) => {
+                            let new_val = match src.as_ref() {
+                                "true" => true,
+                                "on" => true,
+                                "checked" => true,
+                                _ => false,
+                            };
+                            *orig_val = Bool(new_val);
+                        }
+                        _ => {
+                        }
+                    }
+                }
             }
         }
     }
