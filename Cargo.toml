@@ -1,5 +1,5 @@
 [workspace]
 members = ["rsp10"
-]
+, "rsp10-derive"]
 resolver = "2"
 
