@@ -17,4 +17,5 @@ fn main() {
     let router = simple_pages::get_router();
     let mut s = rsp10::RspServer::new();
     s.run(router, "Simple Example", 4480);
+    println!("Listening!");
 }

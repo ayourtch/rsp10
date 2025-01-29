@@ -31,6 +31,8 @@ extern crate rand;
 extern crate log;
 extern crate env_logger;
 
+extern crate socket2;
+
 use router::Router;
 
 use iron::prelude::*;
@@ -45,6 +47,8 @@ use std::collections::HashMap;
 
 use mustache::MapBuilder;
 use mustache::Template;
+use std::env;
+use std::mem::take;
 
 use std::fmt::Debug;
 mod html_types;
@@ -57,7 +61,8 @@ pub type RspDataBuilder = foobuilder::FooMapBuilder;
 #[macro_export]
 macro_rules! rsp10_page {
     ($router: ident, $url: expr, $name: ident, $file: expr) => {
-        #[path=$file] mod $name;
+        #[path=$file]
+        mod $name;
         $router.get($url, $name::PageState::handler, format!("GET/{}", $url));
         $router.post($url, $name::PageState::handler, format!("POST/{}", $url));
         $router.put($url, $name::PageState::handler, format!("PUT/{}", $url));
@@ -147,14 +152,14 @@ macro_rules! rsp10_nested_select {
         {
             let mut $elt = $elt.borrow_mut();
             $elt.set_selected_value(&mut $rinfo.state.$parent[$idx].$elt);
-            $elt.highlight = $rinfo.state.$parent[$idx].$elt != $rinfo.initial_state.$parent[$idx].$elt;
+            $elt.highlight =
+                $rinfo.state.$parent[$idx].$elt != $rinfo.initial_state.$parent[$idx].$elt;
             $elt.id = format!("{}__{}__{}", stringify!($parent), $idx, stringify!($elt));
             $modified = $modified || $elt.highlight;
         }
         rsp10_nested_gd!($gd, $parent, $idx, $elt);
     };
 }
-
 
 #[macro_export]
 macro_rules! rsp10_text {
@@ -564,8 +569,7 @@ fn amend_value_x(
                             };
                             *orig_val = Bool(new_val);
                         }
-                        _ => {
-                        }
+                        _ => {}
                     }
                 }
             }
@@ -894,9 +898,19 @@ where
 
 pub struct RspServer {
     default_secret: Option<Vec<u8>>,
+    // listening: Option<hyper::server::Listening>,
+    listening: Option<iron::Listening>,
 }
 
 impl RspServer {
+    pub fn close(&mut self) -> bool {
+        if let Some(mut listening) = take(&mut self.listening) {
+            listening.close();
+            true
+        } else {
+            false
+        }
+    }
     pub fn read_default_secret() -> Result<Vec<u8>, std::io::Error> {
         use std::fs::File;
         use std::io;
@@ -912,6 +926,7 @@ impl RspServer {
         let secret = Self::read_default_secret().ok();
         RspServer {
             default_secret: secret,
+            listening: None,
         }
     }
 
@@ -936,17 +951,89 @@ impl RspServer {
         let my_secret = self.default_secret.clone().unwrap_or(rand_bytes());
         let mut ch = Chain::new(mount);
         ch.link_around(SessionStorage::new(SignedCookieBackend::new(my_secret)));
+        let reuse_s = env::var("IRON_PORT_REUSE").unwrap_or(format!("false"));
+        let reuse = reuse_s.parse::<bool>().unwrap_or(false);
 
-        run_http_server(service_name, port, ch);
+        self.listening = if reuse {
+            Some(run_http_server_with_reuse(service_name, port, ch))
+        } else {
+            Some(run_http_server(service_name, port, ch))
+        };
     }
 }
 
-fn run_http_server<H: Handler>(service_name: &str, port: u16, handler: H) {
+fn get_tcp_listener(port: u16, reuse: bool, backlog: i32) -> std::net::TcpListener {
+    use socket2::{Domain, Protocol, Socket, Type};
+    use std::net::SocketAddr;
+    use std::net::TcpListener;
+
+    let bind_ip = env::var("BIND_IP").unwrap_or_else(|_| "127.0.0.1".to_string());
+    let bind_port_s = env::var("BIND_PORT").unwrap_or(port.to_string());
+    let bind_port = bind_port_s.parse::<u16>().unwrap_or(port);
+    let addr: SocketAddr = format!("{}:{}", &bind_ip, &bind_port).parse().unwrap();
+    println!(
+        "getting TCP listener on {}:{} with{} address/port reuse, backlog {}",
+        &bind_ip,
+        bind_port,
+        if reuse { "" } else { "out" },
+        backlog
+    );
+    let socket = Socket::new(Domain::IPV4, Type::STREAM, Some(Protocol::TCP))
+        .expect("could not make a TCP socket");
+
+    // Set reuse flags
+    socket
+        .set_reuse_address(reuse)
+        .expect("Could not set reuse_address");
+    // Note: set_reuse_port is not available on all platforms
+    #[cfg(all(unix, not(target_os = "solaris"), not(target_os = "illumos")))]
+    socket
+        .set_reuse_port(reuse)
+        .expect("Could not set reuse_port");
+
+    // Bind and convert to std::net::TcpListener
+    socket.bind(&addr.into()).expect("Could not bind");
+    socket.listen(backlog).expect("Could not set the backlog");
+    let listener = std::net::TcpListener::from(socket);
+    listener
+}
+
+fn run_http_server_with_reuse<H: Handler>(
+    service_name: &str,
+    port: u16,
+    handler: H,
+) -> iron::Listening {
     use iron::Timeouts;
     use std::env;
     use std::time::Duration;
     env_logger::init();
 
+    let mut iron = Iron::new(handler);
+    let threads_s = env::var("IRON_HTTP_THREADS").unwrap_or("1".to_string());
+    let threads = threads_s.parse::<usize>().unwrap_or(1);
+    let backlog_s = env::var("IRON_SOCKET_BACKLOG").unwrap_or("0".to_string());
+    let backlog = backlog_s.parse::<i32>().unwrap_or(0);
+    iron.threads = threads;
+    iron.timeouts = Timeouts {
+        keep_alive: Some(Duration::from_millis(10)),
+        read: Some(Duration::from_secs(10)),
+        write: Some(Duration::from_secs(10)),
+    };
+
+    let mut listener = hyper::net::HttpListener::from(get_tcp_listener(port, true, 0));
+
+    iron.listen(listener, iron::Protocol::http()).unwrap()
+}
+
+fn run_http_server<H: Handler>(service_name: &str, port: u16, handler: H) -> iron::Listening {
+    use iron::Timeouts;
+    use std::env;
+    use std::time::Duration;
+    env_logger::init();
+
+    let bind_ip = env::var("BIND_IP").unwrap_or_else(|_| "127.0.0.1".to_string());
+    let bind_port_s = env::var("BIND_PORT").unwrap_or(port.to_string());
+    let bind_port = bind_port_s.parse::<u16>().unwrap_or(port);
     let mut iron = Iron::new(handler);
     let threads_s = env::var("IRON_HTTP_THREADS").unwrap_or("1".to_string());
     let threads = threads_s.parse::<usize>().unwrap_or(1);
@@ -957,13 +1044,9 @@ fn run_http_server<H: Handler>(service_name: &str, port: u16, handler: H) {
         write: Some(Duration::from_secs(10)),
     };
 
-    let bind_ip = env::var("BIND_IP").unwrap_or_else(|_| "127.0.0.1".to_string());
-    let bind_port_s = env::var("BIND_PORT").unwrap_or(port.to_string());
-    let bind_port = bind_port_s.parse::<u16>().unwrap_or(port);
-
     println!(
-        "HTTP server for {} starting on {}:{}",
+        "HTTP server for {} starting on {}:{} without address/port reuse",
         service_name, &bind_ip, bind_port
     );
-    iron.http(&format!("{}:{}", &bind_ip, bind_port)).unwrap();
+    iron.http(&format!("{}:{}", &bind_ip, bind_port)).unwrap()
 }

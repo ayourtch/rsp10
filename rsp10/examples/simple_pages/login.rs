@@ -10,7 +10,7 @@ pub struct PageState {
 }
 
 type MyPageAuth = NoPageAuth;
-type MyPageInfo<'a, 'b, 'c> = RspInfo<'a, 'b, 'c, RspState<String, MyPageAuth>, String, MyPageAuth>;
+type MyPageInfo<'a, 'b, 'c> = RspInfo<'a, 'b, 'c, dyn RspState<String, MyPageAuth>, String, MyPageAuth>;
 
 impl RspState<String, MyPageAuth> for PageState {
     fn get_key(

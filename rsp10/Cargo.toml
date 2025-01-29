@@ -1,12 +1,14 @@
 [package]
 name = "rsp10"
 version = "0.1.0"
+
 authors = ["Andrew Yourtchenko <ayourtch@gmail.com>"]
 
 [dependencies]
 req2struct = { git = "https://github.com/ayourtch/req2struct.git" }
 # req2struct = { path = "../req2struct" }
 
+socket2 = { version = "*", features = ["all"] }
 iron = "*"
 persistent = "*"
 regex = "*"
@@ -17,6 +19,7 @@ diesel = { version = "1.1.*", features = ["postgres", "sqlite", "huge-tables", "
 chrono = { version = "*", features = ["serde"] }
 serde_json = "*"
 serde = "*"
+hyper = "*"
 serde_derive = "*"
 arrayref = "*"
 base64 = "*"
