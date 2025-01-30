@@ -1,5 +1,10 @@
 #![allow(non_snake_case)]
 use super::imports::*;
+// use iron::Plugin;
+use iron::Plugin;
+use persistent::State;
+
+
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PageState {
@@ -30,10 +35,9 @@ impl RspState<String, MyPageAuth> for PageState {
         use std::{thread, time};
 
         let num_sec = 60;
-        println!("Sleeping for {} seconds...", num_sec);
-        thread::sleep(time::Duration::from_secs(num_sec));
-        println!("Done!");
-
+        // println!("Sleeping for {} seconds...", num_sec);
+        //
+        rsp10::request_stop(ri.req);
 
         let mut modified = false;
         let mut gd = RspDataBuilder::new();

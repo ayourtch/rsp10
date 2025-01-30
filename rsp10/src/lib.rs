@@ -54,9 +54,93 @@ use std::fmt::Debug;
 mod html_types;
 pub use html_types::*;
 
+extern crate persistent;
+use iron::typemap::Key;
+// use persistent::Write;
+use persistent::State;
+use std::sync::{Arc, RwLock};
+
+use iron_sessionstorage::Value;
+
 pub mod foobuilder;
 
 pub type RspDataBuilder = foobuilder::FooMapBuilder;
+
+#[derive(Clone, Debug)]
+pub struct Rsp10GlobalData {
+    stop_requested: Arc<RwLock<bool>>,
+    test: Arc<RwLock<Option<String>>>,
+}
+
+/*
+// Implement Value trait for ServerState
+impl Value for Rsp10GlobalData {
+    fn get_key() -> &'static str { "server_state" }
+
+    fn into_raw(self) -> String {
+        serde_json::to_string(&self).unwrap_or_default()
+    }
+
+    fn from_raw(value: String) -> Option<Self> {
+        serde_json::from_str(&value).ok()
+    }
+}
+*/
+
+pub fn request_stop(req: &mut Request) {
+    let glob = req.get::<State<Rsp10GlobalData>>().unwrap();
+    if let Ok(globals) = (*glob).write() {
+        println!("Globals: {:?}", &globals);
+        // globals.stop_listening();
+        globals.request_stop();
+        println!("stopped listening!");
+    };
+}
+
+impl Rsp10GlobalData {
+    fn new() -> Self {
+        Rsp10GlobalData {
+            stop_requested: Arc::new(RwLock::new(false)),
+            test: Arc::new(RwLock::new(None)),
+        }
+    }
+
+    pub fn stop_requested(&self) -> bool {
+        if let Ok(mut lock) = self.stop_requested.read() {
+            lock.clone()
+        } else {
+            false
+        }
+    }
+    pub fn request_stop(&self) -> bool {
+        if let Ok(mut lock) = self.stop_requested.write() {
+            *lock = true;
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn set_test(&self, test: String) -> bool {
+        if let Ok(mut lock) = self.test.write() {
+            *lock = Some(test);
+            true
+        } else {
+            false
+        }
+    }
+    pub fn get_test(&self) -> Option<String> {
+        if let Ok(mut lock) = self.test.read() {
+            lock.clone()
+        } else {
+            None
+        }
+    }
+}
+
+impl Key for Rsp10GlobalData {
+    type Value = Rsp10GlobalData;
+}
 
 #[macro_export]
 macro_rules! rsp10_page {
@@ -896,21 +980,12 @@ where
     }
 }
 
+#[derive(Debug)]
 pub struct RspServer {
     default_secret: Option<Vec<u8>>,
-    // listening: Option<hyper::server::Listening>,
-    listening: Option<iron::Listening>,
 }
 
 impl RspServer {
-    pub fn close(&mut self) -> bool {
-        if let Some(mut listening) = take(&mut self.listening) {
-            listening.close();
-            true
-        } else {
-            false
-        }
-    }
     pub fn read_default_secret() -> Result<Vec<u8>, std::io::Error> {
         use std::fs::File;
         use std::io;
@@ -926,7 +1001,6 @@ impl RspServer {
         let secret = Self::read_default_secret().ok();
         RspServer {
             default_secret: secret,
-            listening: None,
         }
     }
 
@@ -934,7 +1008,12 @@ impl RspServer {
         self.default_secret = Some(new_secret);
     }
 
-    pub fn run<H: Handler>(&mut self, main_handler: H, service_name: &str, port: u16) {
+    pub fn run<H: Handler>(
+        &mut self,
+        main_handler: H,
+        service_name: &str,
+        port: u16,
+    ) -> (Rsp10GlobalData, iron::Listening) {
         use mount::Mount;
         use rand::random;
         use staticfile::Static;
@@ -948,17 +1027,24 @@ impl RspServer {
         mount.mount("/", main_handler);
         mount.mount("/static/", Static::new(Path::new("staticfiles/")));
 
+        let globals = Rsp10GlobalData::new();
+
         let my_secret = self.default_secret.clone().unwrap_or(rand_bytes());
         let mut ch = Chain::new(mount);
+
         ch.link_around(SessionStorage::new(SignedCookieBackend::new(my_secret)));
         let reuse_s = env::var("IRON_PORT_REUSE").unwrap_or(format!("false"));
         let reuse = reuse_s.parse::<bool>().unwrap_or(false);
 
-        self.listening = if reuse {
-            Some(run_http_server_with_reuse(service_name, port, ch))
+        ch.link(State::<Rsp10GlobalData>::both(globals.clone()));
+
+        let listening = if reuse {
+            run_http_server_with_reuse(service_name, port, ch)
         } else {
-            Some(run_http_server(service_name, port, ch))
+            run_http_server(service_name, port, ch)
         };
+        globals.set_test(format!("testing"));
+        (globals, listening)
     }
 }
 
