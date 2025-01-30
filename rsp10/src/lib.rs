@@ -72,21 +72,6 @@ pub struct Rsp10GlobalData {
     test: Arc<RwLock<Option<String>>>,
 }
 
-/*
-// Implement Value trait for ServerState
-impl Value for Rsp10GlobalData {
-    fn get_key() -> &'static str { "server_state" }
-
-    fn into_raw(self) -> String {
-        serde_json::to_string(&self).unwrap_or_default()
-    }
-
-    fn from_raw(value: String) -> Option<Self> {
-        serde_json::from_str(&value).ok()
-    }
-}
-*/
-
 pub fn request_stop(req: &mut Request) {
     let glob = req.get::<State<Rsp10GlobalData>>().unwrap();
     if let Ok(globals) = (*glob).write() {
