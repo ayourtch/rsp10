@@ -18,6 +18,7 @@ extern crate env_logger;
 use std::collections::HashMap;
 use mustache::{MapBuilder, Template};
 use std::fmt::Debug;
+use crate::core::RspKey;
 
 // New modular architecture - framework agnostic core
 pub mod http_adapter;
@@ -57,6 +58,48 @@ pub use http_adapter::{HttpRequest, HttpResponse, HttpResult, HttpError};
 // Re-export Iron adapter if feature is enabled
 #[cfg(feature = "iron")]
 pub use iron_adapter::{make_iron_handler, IronRequestAdapter, IronResponseBuilder};
+
+// Unified web handler that works with both Iron and Axum
+pub struct WebHandler<S, T, TA> {
+    _phantom: std::marker::PhantomData<(S, T, TA)>,
+}
+
+impl<S, T, TA> WebHandler<S, T, TA> {
+    pub fn new() -> Self {
+        Self {
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    #[cfg(feature = "iron")]
+    pub fn to_iron(self) -> iron_adapter::RspIronHandler<S, T, TA>
+    where
+        S: RspState<T, TA> + Send + Sync + 'static,
+        T: RspKey + serde::Serialize + std::fmt::Debug + Clone + Default + serde::de::DeserializeOwned + Send + Sync + 'static,
+        TA: RspUserAuth + serde::Serialize + Send + Sync + iron_sessionstorage::Value + Clone + iron::typemap::Key<Value = TA> + 'static,
+    {
+        make_iron_handler::<S, T, TA>()
+    }
+
+    #[cfg(feature = "axum")]
+    pub fn to_axum(
+        self
+    ) -> impl Fn(
+        axum::extract::State<std::sync::Arc<tokio::sync::Mutex<axum_adapter::SessionData>>>,
+        axum::extract::Query<std::collections::HashMap<String, String>>,
+        Option<axum::extract::Form<std::collections::HashMap<String, String>>>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = axum::response::Response> + Send>> + Clone
+    where
+        S: RspState<T, TA> + 'static,
+        T: RspKey + 'static,
+        TA: RspUserAuth + serde::Serialize + serde::de::DeserializeOwned + Default + 'static,
+    {
+        move |state, query, form| {
+            Box::pin(axum_adapter::axum_handler_fn::<S, T, TA>((query, form, state)))
+        }
+    }
+}
+
 
 // Template utilities
 pub fn maybe_compile_template(name: &str) -> Result<Template, mustache::Error> {

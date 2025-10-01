@@ -96,6 +96,11 @@ pub fn derive_rsp_state(input: TokenStream) -> TokenStream {
                 rsp10::axum_adapter::axum_handler_fn::<#name, #key_ty, #auth_ty>((query, form, state)).await
             }
 
+            // Unified web handler - returns framework-specific handler
+            pub fn web_handler() -> rsp10::WebHandler<#name, #key_ty, #auth_ty> {
+                rsp10::WebHandler::new()
+            }
+
             impl #name {
                 pub fn derive_auto_fill_data_impl<'a>(
                     mut ri: rsp10::RspInfo<'a, Self, #key_ty, #auth_ty>

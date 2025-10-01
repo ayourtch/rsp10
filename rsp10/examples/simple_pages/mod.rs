@@ -16,22 +16,20 @@ pub fn get_router() -> router::Router {
 
     let mut r = Router::new();
 
-    // Register routes using auto-generated handler functions
-    r.get("/login", login::handler(), "GET/login".to_string());
-    r.post("/login", login::handler(), "POST/login".to_string());
+    // Register routes using web_handler()
+    let login_handler = login::web_handler().to_iron();
+    r.get("/login", login_handler.clone(), "GET/login".to_string());
+    r.post("/login", login_handler, "POST/login".to_string());
 
-    r.get("/logout", logout::handler(), "GET/logout".to_string());
-    r.post("/logout", logout::handler(), "POST/logout".to_string());
+    let logout_handler = logout::web_handler().to_iron();
+    r.get("/logout", logout_handler.clone(), "GET/logout".to_string());
+    r.post("/logout", logout_handler, "POST/logout".to_string());
 
-    r.get("/teststate", teststate::handler(), "GET/teststate".to_string());
-    r.post("/teststate", teststate::handler(), "POST/teststate".to_string());
-
-    // r.get("/sleep", sleep::handler(), "GET/sleep".to_string());
-    // r.post("/sleep", sleep::handler(), "POST/sleep".to_string());
-
-    // Mount teststate on root as well
-    r.get("/", teststate::handler(), "GET/".to_string());
-    r.post("/", teststate::handler(), "POST/".to_string());
+    let teststate_handler = teststate::web_handler().to_iron();
+    r.get("/teststate", teststate_handler.clone(), "GET/teststate".to_string());
+    r.post("/teststate", teststate_handler.clone(), "POST/teststate".to_string());
+    r.get("/", teststate_handler.clone(), "GET/".to_string());
+    r.post("/", teststate_handler, "POST/".to_string());
 
     r
 }
@@ -41,20 +39,18 @@ pub fn get_router() -> router::Router {
 pub fn get_axum_router(
     session_data: std::sync::Arc<tokio::sync::Mutex<rsp10::axum_adapter::SessionData>>
 ) -> axum::Router {
-    use axum::routing::any;
+    use axum::routing::{get, post};
     use tower_http::services::ServeDir;
 
+    let login_handler = login::web_handler().to_axum();
+    let logout_handler = logout::web_handler().to_axum();
+    let teststate_handler = teststate::web_handler().to_axum();
+
     axum::Router::new()
-        // Login routes
-        .route("/login", any(login::axum_handler))
-        // Logout routes
-        .route("/logout", any(logout::axum_handler))
-        // Test state routes
-        .route("/teststate", any(teststate::axum_handler))
-        // Root route (same as teststate)
-        .route("/", any(teststate::axum_handler))
-        // Static files
+        .route("/login", get(login_handler.clone()).post(login_handler))
+        .route("/logout", get(logout_handler.clone()).post(logout_handler))
+        .route("/teststate", get(teststate_handler.clone()).post(teststate_handler.clone()))
+        .route("/", get(teststate_handler.clone()).post(teststate_handler))
         .nest_service("/static", ServeDir::new("staticfiles/"))
-        // Shared session state
         .with_state(session_data)
 }
