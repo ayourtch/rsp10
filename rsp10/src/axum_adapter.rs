@@ -385,3 +385,37 @@ where
         Box::pin(axum_handler_fn::<S, T, TA>((query, form, session_state)))
     }
 }
+
+#[cfg(feature = "axum")]
+/// Axum server wrapper similar to RspServer for Iron
+pub struct RspAxumServer {
+    session_data: Arc<tokio::sync::Mutex<SessionData>>,
+}
+
+#[cfg(feature = "axum")]
+impl RspAxumServer {
+    pub fn new() -> Self {
+        Self {
+            session_data: Arc::new(tokio::sync::Mutex::new(SessionData::default())),
+        }
+    }
+
+    pub fn session_data(&self) -> Arc<tokio::sync::Mutex<SessionData>> {
+        self.session_data.clone()
+    }
+
+    pub async fn run(
+        &self,
+        router: axum::Router,
+        title: &str,
+        port: u16,
+    ) {
+        use std::net::SocketAddr;
+
+        let addr = SocketAddr::from(([127, 0, 0, 1], port));
+        println!("HTTP server for {} (Axum) starting on {}", title, addr);
+
+        let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+        axum::serve(listener, router).await.unwrap();
+    }
+}

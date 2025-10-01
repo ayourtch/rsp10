@@ -9,14 +9,8 @@ mod teststate;
 // #[path = "sleep.rs"]
 // mod sleep; // Temporarily disabled due to serde issues
 
-// Re-export auto-generated axum handlers for framework-agnostic access
-#[cfg(feature = "axum")]
-pub use login::axum_handler as login_bridge;
-#[cfg(feature = "axum")]
-pub use logout::axum_handler as logout_bridge;
-#[cfg(feature = "axum")]
-pub use teststate::axum_handler as teststate_bridge;
-
+// Iron router
+#[cfg(feature = "iron")]
 pub fn get_router() -> router::Router {
     use router::Router;
 
@@ -40,4 +34,27 @@ pub fn get_router() -> router::Router {
     r.post("/", teststate::handler(), "POST/".to_string());
 
     r
+}
+
+// Axum router
+#[cfg(feature = "axum")]
+pub fn get_axum_router(
+    session_data: std::sync::Arc<tokio::sync::Mutex<rsp10::axum_adapter::SessionData>>
+) -> axum::Router {
+    use axum::routing::any;
+    use tower_http::services::ServeDir;
+
+    axum::Router::new()
+        // Login routes
+        .route("/login", any(login::axum_handler))
+        // Logout routes
+        .route("/logout", any(logout::axum_handler))
+        // Test state routes
+        .route("/teststate", any(teststate::axum_handler))
+        // Root route (same as teststate)
+        .route("/", any(teststate::axum_handler))
+        // Static files
+        .nest_service("/static", ServeDir::new("staticfiles/"))
+        // Shared session state
+        .with_state(session_data)
 }
