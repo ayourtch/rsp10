@@ -36,17 +36,19 @@ pub fn derive_rsp_state(input: TokenStream) -> TokenStream {
     // TODO: Extract these from attributes
     // For now, we'll leave them as associated types/generics
 
+    // Always generate as a standalone impl - this avoids conflicts with manual trait impls
     let expanded = if let (Some(key_ty), Some(auth_ty)) = (key_type, auth_type) {
         // Generate with concrete types
         quote! {
             impl #name {
-                pub fn auto_fill_data_impl<'a>(
+                pub fn derive_auto_fill_data_impl<'a>(
                     mut ri: rsp10::RspInfo<'a, Self, #key_ty, #auth_ty>
                 ) -> rsp10::RspFillDataResult<Self> {
+                    println!("DEBUG: derive_auto_fill_data_impl called for {}", stringify!(#name));
                     let mut modified = false;
                     let mut gd = rsp10::RspDataBuilder::new();
                     #fill_data_impl
-                    Self::fill_data_result(ri, gd)
+                    <Self as rsp10::RspState<#key_ty, #auth_ty>>::fill_data_result(ri, gd)
                 }
             }
         }
@@ -54,7 +56,7 @@ pub fn derive_rsp_state(input: TokenStream) -> TokenStream {
         // Generate with generic types (fallback)
         quote! {
             impl #name {
-                pub fn auto_fill_data_impl<'a, T, TA>(
+                pub fn derive_auto_fill_data_impl<'a, T, TA>(
                     mut ri: rsp10::RspInfo<'a, Self, T, TA>
                 ) -> rsp10::RspFillDataResult<Self>
                 where

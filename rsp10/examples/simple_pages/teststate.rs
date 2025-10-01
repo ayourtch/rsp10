@@ -73,9 +73,9 @@ impl RspState<KeyI32, MyPageAuth> for PageState {
             ..Default::default()
         }
     }
+
     fn fill_data<'a>(ri: RspInfo<'a, Self, KeyI32, MyPageAuth>) -> RspFillDataResult<Self> {
-        println!("{:?}", &ri.state);
-        Self::auto_fill_data_impl(ri)
+        Self::derive_auto_fill_data_impl(ri)
     }
 
     fn event_handler<'a>(ri: RspInfo<'a, Self, KeyI32, MyPageAuth>) -> RspEventHandlerResult<Self, KeyI32> {
