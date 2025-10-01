@@ -9,6 +9,10 @@ mod teststate;
 // #[path = "sleep.rs"]
 // mod sleep; // Temporarily disabled due to serde issues
 
+// Re-export public bridge functions for framework-agnostic access
+#[cfg(feature = "axum")]
+pub use teststate::axum_bridge;
+
 pub fn get_router() -> router::Router {
     use router::Router;
 

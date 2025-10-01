@@ -12,7 +12,7 @@ mod axum_impl {
     use axum::{
         extract::State,
         response::{Html, IntoResponse},
-        routing::get,
+        routing::{get, any},
         Router,
     };
     use std::sync::Arc;
@@ -52,13 +52,13 @@ mod axum_impl {
             .route("/logout", get(logout_get_handler).post(logout_post_handler))
 
             // Test state routes
-            .route("/teststate", get(teststate_get_handler).post(teststate_post_handler))
+            .route("/teststate", any(simple_pages::axum_bridge))
 
             // Sleep routes (temporarily disabled)
             // .route("/sleep", get(sleep_get_handler).post(sleep_post_handler))
 
             // Root route (same as teststate)
-            .route("/", get(teststate_get_handler).post(teststate_post_handler))
+            .route("/", any(simple_pages::axum_bridge))
 
             // Static files
             .nest_service("/static", ServeDir::new("staticfiles/"))
@@ -103,23 +103,8 @@ mod axum_impl {
         Html("<h1>Logout Complete (Axum)</h1><p>Successfully logged out using Axum framework.</p><p><a href='/'>Back to Home</a></p>")
     }
 
-    async fn teststate_get_handler(
-        State(_session_state): State<Arc<tokio::sync::Mutex<SessionData>>>,
-    ) -> impl axum::response::IntoResponse {
-        Html(r#"
-            <h1>Test State Page (Axum)</h1>
-            <p>This demonstrates that the Axum framework is working.</p>
-            <p>Bridge functionality is implemented but private module access needs to be resolved.</p>
-            <p><a href='/login'>Login</a> | <a href='/logout'>Logout</a></p>
-        "#)
-    }
-
-    async fn teststate_post_handler(
-        State(_session_state): State<Arc<tokio::sync::Mutex<SessionData>>>,
-    ) -> impl axum::response::IntoResponse {
-        Html("<h1>Test State Posted (Axum)</h1><p>Form submitted using Axum framework with shared page logic.</p><p><a href='/'>Back to Home</a></p>")
-    }
-
+    
+    
     async fn sleep_get_handler(
         State(_session_state): State<Arc<tokio::sync::Mutex<SessionData>>>,
     ) -> impl axum::response::IntoResponse {
