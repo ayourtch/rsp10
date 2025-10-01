@@ -27,6 +27,9 @@ pub mod core;
 #[cfg(feature = "iron")]
 pub mod iron_adapter;
 
+#[cfg(feature = "axum")]
+pub mod axum_adapter;
+
 // HTML types for form elements
 mod html_types;
 pub use html_types::*;

@@ -80,8 +80,20 @@ pub fn derive_rsp_state(input: TokenStream) -> TokenStream {
         quote! {
             pub type #auth_alias_ident = #auth_ty;
 
+            // Iron handler (when iron feature is enabled)
+            #[cfg(feature = "iron")]
             pub fn handler() -> impl iron::Handler {
                 rsp10::make_iron_handler::<#name, #key_ty, #auth_ty>()
+            }
+
+            // Axum handler (when axum feature is enabled)
+            #[cfg(feature = "axum")]
+            pub fn handler() -> impl Fn(
+                axum::extract::Query<std::collections::HashMap<String, String>>,
+                Option<axum::extract::Form<std::collections::HashMap<String, String>>>,
+                axum::extract::State<std::sync::Arc<tokio::sync::Mutex<rsp10::axum_adapter::SessionData>>>,
+            ) -> std::pin::Pin<Box<dyn std::future::Future<Output = axum::http::Response<axum::body::Body>> + Send>> {
+                rsp10::axum_adapter::make_axum_handler::<#name, #key_ty, #auth_ty>()
             }
 
             impl #name {
