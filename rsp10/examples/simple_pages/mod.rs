@@ -15,10 +15,10 @@ pub fn get_router() -> router::Router {
     let mut r = Router::new();
 
     // Create handlers using the new Iron adapter
-    let login_handler = rsp10::make_iron_handler::<login::PageState, String, login::MyPageAuth>();
+    let login_handler = rsp10::make_iron_handler::<login::PageState, login::LoginKey, login::MyPageAuth>();
     let logout_handler = rsp10::make_iron_handler::<logout::PageState, (), logout::MyPageAuth>();
     let teststate_handler = rsp10::make_iron_handler::<teststate::PageState, teststate::KeyI32, teststate::MyPageAuth>();
-    let sleep_handler = rsp10::make_iron_handler::<sleep::PageState, String, sleep::MyPageAuth>();
+    let sleep_handler = rsp10::make_iron_handler::<sleep::PageState, sleep::SleepKey, sleep::MyPageAuth>();
 
     // Register routes
     r.get("/login", login_handler.clone(), "GET/login".to_string());

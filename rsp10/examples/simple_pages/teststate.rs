@@ -2,9 +2,9 @@
 
 use super::imports::*;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, rsp10_derive::RspKey)]
 pub struct KeyI32 {
-    id: Option<i32>,
+    pub id: Option<i32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, rsp10::DeriveRspState)]
@@ -53,15 +53,6 @@ pub fn dbh_get_testing_dropdown(_switchtype: i32) -> HtmlSelect<i32> {
 impl RspState<KeyI32, MyPageAuth> for PageState {
     fn get_template_name() -> String {
         "teststate".to_string()
-    }
-    fn get_key(
-        auth: &MyPageAuth,
-        args: &HashMap<String, Vec<String>>,
-        maybe_state: &Option<PageState>,
-    ) -> Option<KeyI32> {
-        Some(KeyI32 {
-            id: args.get("id").map_or(None, |x| x[0].parse::<i32>().ok()),
-        })
     }
     fn get_state(auth: &MyPageAuth, key: KeyI32) -> PageState {
         println!("default state for PageState with key: {:?}", &key);

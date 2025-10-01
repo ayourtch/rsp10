@@ -1,7 +1,14 @@
 #![allow(non_snake_case)]
 use super::imports::*;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, RspKey)]
+pub struct LoginKey {
+    pub return_url: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, rsp10::DeriveRspState)]
+#[rsp_key(LoginKey)]
+#[rsp_auth(NoPageAuth)]
 pub struct PageState {
     txtUsername: String,
     txtPassword: String,
@@ -12,28 +19,17 @@ pub struct PageState {
 pub type MyPageAuth = NoPageAuth;
 // Type alias removed - RspInfo now has only one lifetime
 
-impl RspState<String, MyPageAuth> for PageState {
-    fn get_key(
-        auth: &MyPageAuth,
-        args: &HashMap<String, Vec<String>>,
-        maybe_state: &Option<PageState>,
-    ) -> Option<String> {
-        if let Some(st) = maybe_state {
-            Some(st.return_url.clone())
-        } else {
-            let root = vec!["/".to_string()];
-            Some(args.get("ReturnUrl").unwrap_or(&root)[0].clone())
-        }
-    }
-    fn get_state(auth: &MyPageAuth, key: String) -> PageState {
+impl RspState<LoginKey, MyPageAuth> for PageState {
+    fn get_state(auth: &MyPageAuth, key: LoginKey) -> PageState {
         PageState {
             txtUsername: "".to_string(),
             txtPassword: "".to_string(),
             message: None,
-            return_url: key,
+            return_url: key.return_url,
         }
     }
-    fn fill_data<'a>(mut ri: RspInfo<'a, Self, String, MyPageAuth>) -> RspFillDataResult<Self> {
+
+    fn fill_data<'a>(ri: RspInfo<'a, Self, LoginKey, MyPageAuth>) -> RspFillDataResult<Self> {
         let mut modified = false;
         let mut gd = RspDataBuilder::new();
         let env_username = std::env::var("TEST_USERNAME").ok();
@@ -45,15 +41,25 @@ impl RspState<String, MyPageAuth> for PageState {
         Self::fill_data_result(ri, gd)
     }
 
-    fn event_handler<'a>(ri: RspInfo<'a, Self, String, MyPageAuth>) -> RspEventHandlerResult<Self, String> {
+    fn event_handler<'a>(ri: RspInfo<'a, Self, LoginKey, MyPageAuth>) -> RspEventHandlerResult<Self, LoginKey> {
         let mut action = rsp10::RspAction::Render;
-        let mut initial_state = ri.initial_state;
-        let mut state = ri.state;
+        let mut initial_state = ri.initial_state.clone();
+        let mut state = ri.state.clone();
+
+        println!("Debug - event_handler called");
+        println!("Debug - state_none: {}", ri.state_none);
+        println!("Debug - initial_state: {:?}", initial_state);
+        println!("Debug - state: {:?}", state);
+
         if ri.event.event == "submit" {
             println!("Submit on login page");
+            println!("Debug - received username: '{}'", state.txtUsername);
+            println!("Debug - received password: '{}'", state.txtPassword);
             /* replace this "validation" with something more meaningful */
             let env_username = std::env::var("TEST_USERNAME").ok();
             let env_password = std::env::var("TEST_PASSWORD").ok();
+            println!("Debug - env username: {:?}", env_username);
+            println!("Debug - env password: {:?}", env_password);
 
             if Some(state.txtUsername.clone()) == env_username
                 && Some(state.txtPassword.clone()) == env_password

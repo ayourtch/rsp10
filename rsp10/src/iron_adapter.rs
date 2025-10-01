@@ -11,6 +11,7 @@ use urlencoded::{UrlEncodedBody, UrlEncodedQuery};
 
 use crate::http_adapter::{HttpRequest, HttpResponse, HttpResult, HttpError};
 use crate::core::{RspState, RspUserAuth, RspEvent, RspAction, extract_event, extract_json_state, amend_json_value};
+use crate::core::RspKey;
 use crate::{Rsp10GlobalData, maybe_compile_template};
 
 /// Wrapper to implement HttpRequest for Iron's Request
@@ -150,7 +151,7 @@ impl IronResponseBuilder {
 pub struct RspIronHandler<S, T, TA>
 where
     S: RspState<T, TA> + Send + Sync + 'static,
-    T: serde::Serialize + std::fmt::Debug + Clone + Default + serde::de::DeserializeOwned + Send + Sync + 'static,
+    T: serde::Serialize + std::fmt::Debug + Clone + Default + serde::de::DeserializeOwned + Send + Sync + 'static + RspKey,
     TA: RspUserAuth + serde::Serialize + Send + Sync + Value + Clone + iron::typemap::Key<Value = TA> + 'static,
 {
     _phantom: std::marker::PhantomData<(S, T, TA)>,
@@ -159,7 +160,7 @@ where
 impl<S, T, TA> RspIronHandler<S, T, TA>
 where
     S: RspState<T, TA> + Send + Sync + 'static,
-    T: serde::Serialize + std::fmt::Debug + Clone + Default + serde::de::DeserializeOwned + Send + Sync + 'static,
+    T: serde::Serialize + std::fmt::Debug + Clone + Default + serde::de::DeserializeOwned + Send + Sync + 'static + RspKey,
     TA: RspUserAuth + serde::Serialize + Send + Sync + Value + Clone + iron::typemap::Key<Value = TA> + 'static,
 {
     pub fn new() -> Self {
@@ -172,7 +173,7 @@ where
 impl<S, T, TA> Handler for RspIronHandler<S, T, TA>
 where
     S: RspState<T, TA> + Send + Sync + 'static,
-    T: serde::Serialize + std::fmt::Debug + Clone + Default + serde::de::DeserializeOwned + Send + Sync + 'static,
+    T: serde::Serialize + std::fmt::Debug + Clone + Default + serde::de::DeserializeOwned + Send + Sync + 'static + RspKey,
     TA: RspUserAuth + serde::Serialize + Send + Sync + Value + Clone + iron::typemap::Key<Value = TA> + 'static,
 {
     fn handle(&self, req: &mut Request) -> IronResult<Response> {
@@ -360,7 +361,7 @@ where
 pub fn make_iron_handler<S, T, TA>() -> RspIronHandler<S, T, TA>
 where
     S: RspState<T, TA> + Send + Sync + 'static,
-    T: serde::Serialize + std::fmt::Debug + Clone + Default + serde::de::DeserializeOwned + Send + Sync + 'static,
+    T: serde::Serialize + std::fmt::Debug + Clone + Default + serde::de::DeserializeOwned + Send + Sync + 'static + RspKey,
     TA: RspUserAuth + serde::Serialize + Send + Sync + Value + Clone + iron::typemap::Key<Value = TA> + 'static,
 {
     RspIronHandler::new()

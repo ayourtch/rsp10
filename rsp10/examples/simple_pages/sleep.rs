@@ -4,7 +4,10 @@ use super::imports::*;
 use iron::Plugin;
 use persistent::State;
 
-
+#[derive(Debug, Clone, Serialize, Deserialize, Default, RspKey)]
+pub struct SleepKey {
+    pub message: String,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PageState {
@@ -14,24 +17,13 @@ pub struct PageState {
 pub type MyPageAuth = NoPageAuth;
 // Type alias removed - RspInfo now has only one lifetime
 
-impl RspState<String, MyPageAuth> for PageState {
-    fn get_key(
-        auth: &MyPageAuth,
-        args: &HashMap<String, Vec<String>>,
-        maybe_state: &Option<PageState>,
-    ) -> Option<String> {
-        if let Some(st) = maybe_state {
-            None
-        } else {
-            None
-        }
-    }
-    fn get_state(auth: &MyPageAuth, key: String) -> PageState {
+impl RspState<SleepKey, MyPageAuth> for PageState {
+    fn get_state(auth: &MyPageAuth, key: SleepKey) -> PageState {
         PageState {
-            message: Some(key),
+            message: Some(key.message),
         }
     }
-    fn fill_data(ri: RspInfo<Self, String, MyPageAuth>) -> RspFillDataResult<Self> {
+    fn fill_data(ri: RspInfo<Self, SleepKey, MyPageAuth>) -> RspFillDataResult<Self> {
         use std::{thread, time};
 
         let num_sec = 60;
@@ -46,7 +38,7 @@ impl RspState<String, MyPageAuth> for PageState {
         Self::fill_data_result(ri, gd)
     }
 
-    fn event_handler(ri: RspInfo<Self, String, MyPageAuth>) -> RspEventHandlerResult<Self, String> {
+    fn event_handler(ri: RspInfo<Self, SleepKey, MyPageAuth>) -> RspEventHandlerResult<Self, SleepKey> {
         let mut action = rsp10::RspAction::Render;
         let mut initial_state = ri.initial_state;
         let mut state = ri.state;

@@ -2,6 +2,41 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, DeriveInput, Data, Fields, Field};
 
+/// Derive macro for RspKey trait implementation
+///
+/// Automatically generates from_query_args() implementation based on struct fields:
+/// - Each field is extracted from query parameters by name
+/// - Optional fields are handled gracefully
+/// - Supports basic Rust types (i32, String, etc.)
+#[proc_macro_derive(RspKey)]
+pub fn derive_rsp_key(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+
+    let name = &input.ident;
+
+    // Parse the struct fields
+    let fields = match &input.data {
+        Data::Struct(data) => {
+            match &data.fields {
+                Fields::Named(fields) => &fields.named,
+                _ => panic!("RspKey can only be derived for structs with named fields"),
+            }
+        }
+        _ => panic!("RspKey can only be derived for structs"),
+    };
+
+      // Generate the from_query_args implementation
+    let from_query_args_impl = generate_from_query_args(fields, name);
+
+    let expanded = quote! {
+        impl rsp10::core::RspKey for #name {
+            #from_query_args_impl
+        }
+    };
+
+    TokenStream::from(expanded)
+}
+
 /// Derive macro for RspState trait implementation
 ///
 /// Automatically generates fill_data() and related methods based on field naming conventions:
@@ -192,4 +227,86 @@ fn get_dropdown_source(field_name: &syn::Ident, field: &Field) -> proc_macro2::T
 
     // For now, just use the full name convention
     quote! { #full_name }
+}
+
+fn generate_from_query_args(fields: &syn::punctuated::Punctuated<Field, syn::token::Comma>, struct_name: &syn::Ident) -> proc_macro2::TokenStream {
+    let mut field_extractions = Vec::new();
+    let mut field_names = Vec::new();
+
+    for field in fields {
+        let field_name = field.ident.as_ref().unwrap();
+        let field_name_str = field_name.to_string();
+        field_names.push(field_name);
+
+        // Generate extraction code based on field type
+        let extraction = match &field.ty {
+            syn::Type::Path(syn::TypePath { path, .. }) => {
+                if let Some(segment) = path.segments.last() {
+                    match segment.ident.to_string().as_str() {
+                        "Option" => {
+                            // For Option<T> fields, make them optional
+                            quote! {
+                                let #field_name = args.get(#field_name_str)
+                                    .and_then(|vals| vals.first())
+                                    .and_then(|s| s.parse().ok());
+                            }
+                        }
+                        "String" => {
+                            quote! {
+                                let #field_name = args.get(#field_name_str)
+                                    .and_then(|vals| vals.first())
+                                    .cloned()
+                                    .unwrap_or_default();
+                            }
+                        }
+                        "i32" | "i64" | "u32" | "u64" => {
+                            quote! {
+                                let #field_name = args.get(#field_name_str)
+                                    .and_then(|vals| vals.first())
+                                    .and_then(|s| s.parse().ok())
+                                    .unwrap_or_default();
+                            }
+                        }
+                        "bool" => {
+                            quote! {
+                                let #field_name = args.get(#field_name_str)
+                                    .and_then(|vals| vals.first())
+                                    .map(|s| s == "true" || s == "1")
+                                    .unwrap_or(false);
+                            }
+                        }
+                        _ => {
+                            // Default for other types - try to parse
+                            quote! {
+                                let #field_name = args.get(#field_name_str)
+                                    .and_then(|vals| vals.first())
+                                    .and_then(|s| s.parse().ok());
+                            }
+                        }
+                    }
+                } else {
+                    quote! {
+                        let #field_name = None;
+                    }
+                }
+            }
+            _ => {
+                quote! {
+                    let #field_name = None;
+                }
+            }
+        };
+
+        field_extractions.push(extraction);
+    }
+
+    quote! {
+        fn from_query_args(args: &std::collections::HashMap<String, Vec<String>>) -> Option<Self> {
+            #(#field_extractions)*
+
+            Some(#struct_name {
+                #(#field_names),*
+            })
+        }
+    }
 }

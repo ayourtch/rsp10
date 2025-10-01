@@ -175,12 +175,27 @@ where
     fn from_request<Req: HttpRequest>(req: &mut Req) -> Result<Self, String>;
 }
 
+/// Trait for keys that can be constructed from query parameters
+pub trait RspKey: serde::Serialize + Debug + Clone + Default + serde::de::DeserializeOwned {
+    /// Construct key from query parameters (default implementation uses req2struct)
+    fn from_query_args(args: &HashMap<String, Vec<String>>) -> Option<Self> {
+        req2struct::from_map(args).ok()
+    }
+}
+
+// Implement RspKey for unit type () for pages that don't need keys
+impl RspKey for () {
+    fn from_query_args(_args: &HashMap<String, Vec<String>>) -> Option<Self> {
+        Some(())
+    }
+}
+
 /// Core state trait - framework agnostic
 pub trait RspState<T, TA>
 where
     Self: std::marker::Sized + serde::Serialize + serde::de::DeserializeOwned + Clone + Debug,
     TA: RspUserAuth + serde::Serialize,
-    T: serde::Serialize + Debug + Clone + Default + serde::de::DeserializeOwned,
+    T: RspKey,
 {
     /// Get initial state based on key - no HTTP framework dependency
     fn get_state(auth: &TA, key: T) -> Self;
@@ -211,13 +226,13 @@ where
         }
     }
 
-    /// Get key from query parameters
+    /// Get key from query parameters (default: delegates to T::from_query_args)
     fn get_key(
-        auth: &TA,
+        _auth: &TA,
         args: &HashMap<String, Vec<String>>,
-        maybe_state: &Option<Self>,
+        _maybe_state: &Option<Self>,
     ) -> Option<T> {
-        None
+        T::from_query_args(args)
     }
 
     /// Default key extraction using req2struct
@@ -225,7 +240,7 @@ where
         _auth: &TA,
         args: &HashMap<String, Vec<String>>,
     ) -> Option<T> {
-        req2struct::from_map(&args).ok()
+        T::from_query_args(args)
     }
 
     /// Get key from query args (framework agnostic)
