@@ -86,12 +86,12 @@ pub fn derive_rsp_state(input: TokenStream) -> TokenStream {
                 rsp10::make_iron_handler::<#name, #key_ty, #auth_ty>()
             }
 
-            // Axum handler (when axum feature is enabled)
+            // Axum handler (when axum feature is enabled) - State must come first for Handler trait
             #[cfg(feature = "axum")]
             pub async fn axum_handler(
+                state: axum::extract::State<std::sync::Arc<tokio::sync::Mutex<rsp10::axum_adapter::SessionData>>>,
                 query: axum::extract::Query<std::collections::HashMap<String, String>>,
                 form: Option<axum::extract::Form<std::collections::HashMap<String, String>>>,
-                state: axum::extract::State<std::sync::Arc<tokio::sync::Mutex<rsp10::axum_adapter::SessionData>>>,
             ) -> axum::response::Response {
                 rsp10::axum_adapter::axum_handler_fn::<#name, #key_ty, #auth_ty>((query, form, state)).await
             }

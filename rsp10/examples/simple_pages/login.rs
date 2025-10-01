@@ -89,13 +89,3 @@ impl RspState<LoginKey, MyPageAuth> for PageState {
         }
     }
 }
-
-// Public bridge function for Axum - delegates to auto-generated handler
-#[cfg(feature = "axum")]
-pub async fn axum_bridge(
-    state: axum::extract::State<std::sync::Arc<tokio::sync::Mutex<rsp10::axum_adapter::SessionData>>>,
-    query: axum::extract::Query<std::collections::HashMap<String, String>>,
-    form: Option<axum::extract::Form<std::collections::HashMap<String, String>>>,
-) -> axum::response::Response {
-    axum_handler(query, form, state).await
-}
