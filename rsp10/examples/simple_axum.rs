@@ -3,6 +3,8 @@ extern crate rsp10;
 extern crate chrono;
 extern crate dotenv;
 
+mod simple_pages;
+
 // Put all Axum-specific code in a module
 #[cfg(feature = "axum")]
 mod axum_impl {
@@ -52,8 +54,8 @@ mod axum_impl {
             // Test state routes
             .route("/teststate", get(teststate_get_handler).post(teststate_post_handler))
 
-            // Sleep routes
-            .route("/sleep", get(sleep_get_handler).post(sleep_post_handler))
+            // Sleep routes (temporarily disabled)
+            // .route("/sleep", get(sleep_get_handler).post(sleep_post_handler))
 
             // Root route (same as teststate)
             .route("/", get(teststate_get_handler).post(teststate_post_handler))
@@ -104,18 +106,109 @@ mod axum_impl {
     async fn teststate_get_handler(
         State(_session_state): State<Arc<tokio::sync::Mutex<SessionData>>>,
     ) -> impl axum::response::IntoResponse {
-        Html(r#"
-            <h1>Test State Page (Axum)</h1>
-            <p>This demonstrates the framework-agnostic design - the same page logic works with both Iron and Axum.</p>
-            <p><strong>Key achievements:</strong></p>
-            <ul>
-                <li>✅ RSP10 framework supports multiple HTTP backends</li>
-                <li>✅ Page logic is shared between Iron and Axum</li>
-                <li>✅ Derive macro works for both frameworks</li>
-                <li>✅ Framework-agnostic architecture achieved</li>
-            </ul>
-            <p><a href='/'>Back to Home</a> | <a href='/login'>Login</a> | <a href='/sleep'>Sleep</a></p>
-        "#)
+        // Replicate Iron flow for GET request - using shared simple_pages::teststate
+        use simple_pages::teststate::{PageState, KeyI32, MyPageAuth};
+        use rsp10::RspState;
+        use std::collections::HashMap;
+
+        // Step 1: Authentication (for GET, use default)
+        let auth = MyPageAuth::default();
+
+        // Step 2: Form data and query params (empty for GET)
+        let form_data = HashMap::new();
+        let query_params = HashMap::new();
+
+        // Step 3: Extract event (empty for GET)
+        let event = rsp10::RspEvent {
+            event: "view".to_string(),
+            target: "".to_string(),
+        };
+
+        // Step 4: Get/reconstruct state (none for initial GET)
+        let maybe_state = None;
+        let maybe_initial_state = None;
+
+        // Step 5: Get key using shared implementation
+        let mut maybe_key = PageState::get_key(&auth, &query_params, &maybe_state);
+        if maybe_key.is_none() {
+            maybe_key = PageState::get_key_from_args(&auth, &query_params);
+        }
+        let key = maybe_key.unwrap_or_default();
+
+        // Step 6: Get current initial state using shared implementation
+        let curr_initial_state = PageState::get_state(&auth, key.clone());
+        let state_none = maybe_state.is_none();
+        let initial_state_none = maybe_initial_state.is_none();
+        let initial_state = maybe_initial_state.unwrap_or(curr_initial_state.clone());
+        let state = maybe_state.unwrap_or(initial_state.clone());
+
+        // Step 7: Handle event using shared implementation
+        let ri = rsp10::RspInfo {
+            auth: &auth,
+            event: &event,
+            key: &key,
+            state,
+            state_none,
+            initial_state,
+            initial_state_none,
+            curr_initial_state: &curr_initial_state,
+        };
+
+        let event_result = PageState::event_handler(ri);
+        let mut initial_state = event_result.initial_state;
+        let mut state = event_result.state;
+        let action = event_result.action;
+        let new_auth = event_result.new_auth;
+
+        // Step 8: Process action (simple case - just render)
+        // For now, ignore actions, redirect, session saving for simplicity
+
+        // Step 9: Fill data using shared implementation
+        let ri = rsp10::RspInfo {
+            auth: &auth,
+            event: &event,
+            key: &key,
+            state,
+            state_none: false,
+            initial_state,
+            initial_state_none: false,
+            curr_initial_state: &curr_initial_state,
+        };
+
+        let fill_result = PageState::fill_data(ri);
+
+        // Step 10: Render template using shared implementation
+        let template_name = if PageState::get_template_name() != "" {
+            PageState::get_template_name()
+        } else {
+            PageState::get_template_name_auto()
+        };
+
+        let template = match rsp10::maybe_compile_template(&template_name) {
+            Ok(t) => t,
+            Err(e) => {
+                return axum::response::Html(format!("Template error: {}", e)).into_response();
+            }
+        };
+
+        // Step 11: Build template data and render
+        let data = fill_result.data
+            .insert("auth", &auth).unwrap()
+            .insert("state", &fill_result.state).unwrap()
+            .insert("state_key", &key).unwrap()
+            .insert("initial_state", &fill_result.initial_state).unwrap()
+            .insert("curr_initial_state", &curr_initial_state).unwrap()
+            .insert("state_json", &serde_json::to_string(&fill_result.state).unwrap()).unwrap()
+            .insert("state_key_json", &serde_json::to_string(&key).unwrap()).unwrap()
+            .insert("initial_state_json", &serde_json::to_string(&fill_result.initial_state).unwrap()).unwrap()
+            .insert("curr_initial_state_json", &serde_json::to_string(&curr_initial_state).unwrap()).unwrap();
+
+        let mut bytes = vec![];
+        let data_built = data.build();
+        template.render_data(&mut bytes, &data_built).expect("Failed to render");
+        let payload = std::str::from_utf8(&bytes).unwrap();
+
+        axum::response::Html(payload.to_string()).into_response()
     }
 
     async fn teststate_post_handler(

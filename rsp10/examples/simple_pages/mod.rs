@@ -6,8 +6,8 @@ mod login;
 mod logout;
 #[path = "teststate.rs"]
 mod teststate;
-#[path = "sleep.rs"]
-mod sleep;
+// #[path = "sleep.rs"]
+// mod sleep; // Temporarily disabled due to serde issues
 
 pub fn get_router() -> router::Router {
     use router::Router;
