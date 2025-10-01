@@ -11,7 +11,11 @@ mod teststate;
 
 // Re-export public bridge functions for framework-agnostic access
 #[cfg(feature = "axum")]
-pub use teststate::axum_bridge;
+pub use login::axum_bridge as login_bridge;
+#[cfg(feature = "axum")]
+pub use logout::axum_bridge as logout_bridge;
+#[cfg(feature = "axum")]
+pub use teststate::axum_bridge as teststate_bridge;
 
 pub fn get_router() -> router::Router {
     use router::Router;
