@@ -16,7 +16,6 @@ pub struct PageState {
     return_url: String,
 }
 
-pub type MyPageAuth = NoPageAuth;
 // Type alias removed - RspInfo now has only one lifetime
 
 impl RspState<LoginKey, MyPageAuth> for PageState {
@@ -25,7 +24,7 @@ impl RspState<LoginKey, MyPageAuth> for PageState {
             txtUsername: "".to_string(),
             txtPassword: "".to_string(),
             message: None,
-            return_url: key.return_url,
+            return_url: if key.return_url.len() == 0 { "/".to_string() } else { key.return_url },
         }
     }
 

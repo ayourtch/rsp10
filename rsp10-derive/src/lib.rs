@@ -71,10 +71,15 @@ pub fn derive_rsp_state(input: TokenStream) -> TokenStream {
     // TODO: Extract these from attributes
     // For now, we'll leave them as associated types/generics
 
+    // Generate a private "MyPageAuth" type alias
+    let auth_alias_ident = syn::Ident::new("MyPageAuth", name.span());
+
     // Always generate as a standalone impl - this avoids conflicts with manual trait impls
     let expanded = if let (Some(key_ty), Some(auth_ty)) = (key_type, auth_type) {
         // Generate with concrete types
         quote! {
+            pub type #auth_alias_ident = #auth_ty;
+
             impl #name {
                 pub fn derive_auto_fill_data_impl<'a>(
                     mut ri: rsp10::RspInfo<'a, Self, #key_ty, #auth_ty>

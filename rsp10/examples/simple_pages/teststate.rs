@@ -30,8 +30,6 @@ pub fn get_ddMyDropdown(value: i32) -> HtmlSelect<i32> {
     dbh_get_dropdown(value)
 }
 
-pub type MyPageAuth = CookiePageAuth;
-
 pub fn dbh_get_dropdown(_switchtype: i32) -> HtmlSelect<i32> {
     let mut dd: HtmlSelect<i32> = Default::default();
     dd.item(" --- ".into(), -1);
