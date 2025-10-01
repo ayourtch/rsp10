@@ -5,7 +5,7 @@
 use std::collections::HashMap;
 use iron::prelude::*;
 use iron::{status, Handler, Plugin};
-use iron_sessionstorage::{SessionStorage, Value};
+use iron_sessionstorage::{SessionStorage, Value, SessionRequestExt};
 use persistent::State;
 use urlencoded::{UrlEncodedBody, UrlEncodedQuery};
 
@@ -21,6 +21,16 @@ pub struct IronRequestAdapter<'req, 'a, 'b> {
 impl<'req, 'a, 'b> IronRequestAdapter<'req, 'a, 'b> {
     pub fn new(req: &'req mut Request<'a, 'b>) -> Self {
         IronRequestAdapter { req }
+    }
+
+    /// Iron-specific: Get session value from extensions
+    pub fn get_iron_session<T: 'static + iron::typemap::Key<Value = T>>(&self) -> Option<&T> {
+        self.req.extensions.get::<T>()
+    }
+
+    /// Iron-specific: Set session value in extensions
+    pub fn set_iron_session<T: 'static + iron::typemap::Key<Value = T>>(&mut self, value: T) {
+        self.req.extensions.insert::<T>(value);
     }
 }
 
@@ -40,16 +50,14 @@ impl<'req, 'a, 'b> HttpRequest for IronRequestAdapter<'req, 'a, 'b> {
     }
 
     fn get_session<T: 'static>(&mut self) -> Option<&T> {
-        // TODO: Session management via iron-sessionstorage
-        // For now, session values are not accessible via this generic method
-        // Authentication flow uses new_auth return value from event_handler instead
+        // Generic session access doesn't work due to Key trait requirements
+        // For Iron-specific code, use extensions directly or get_iron_session()
         None
     }
 
-    fn set_session<T: 'static>(&mut self, value: T) {
-        // TODO: Session management via iron-sessionstorage
-        // For now, session values are set via new_auth return value from event_handler
-        // This method is a no-op
+    fn set_session<T: 'static>(&mut self, _value: T) {
+        // Generic session access doesn't work due to Key trait requirements
+        // For Iron-specific code, use extensions directly or set_iron_session()
     }
 
     fn get_state<T: 'static>(&self) -> Option<&T> {
@@ -168,20 +176,24 @@ where
     TA: RspUserAuth + serde::Serialize + Send + Sync + Value + Clone + iron::typemap::Key<Value = TA> + 'static,
 {
     fn handle(&self, req: &mut Request) -> IronResult<Response> {
-        // TODO: Load session from iron-sessionstorage
-        // SessionStorage middleware is currently disabled - needs API investigation
-        // For now, auth types that check sessions will always fail and redirect to login
+        // Load authenticated user from session
+        let session_auth: Option<TA> = req.session().get::<TA>().ok().and_then(|x| x);
 
         let mut adapter = IronRequestAdapter::new(req);
 
-        // Authenticate
-        let auth_res = TA::from_request(&mut adapter);
+        let auth = if let Some(auth_from_session) = session_auth {
+            // User is authenticated via session
+            auth_from_session
+        } else {
+            // No session - call from_request to authenticate
+            let auth_res = TA::from_request(&mut adapter);
 
-        let auth = match auth_res {
-            Ok(a) => a,
-            Err(login_url) => {
-                let resp = IronResponseBuilder::redirect(&login_url);
-                return Ok(resp.into_iron_response());
+            match auth_res {
+                Ok(a) => a,
+                Err(login_url) => {
+                    let resp = IronResponseBuilder::redirect(&login_url);
+                    return Ok(resp.into_iron_response());
+                }
             }
         };
 
@@ -258,11 +270,21 @@ where
             }
         }
 
-        // TODO: Save session via iron-sessionstorage
-        // SessionStorage middleware is currently disabled - needs API investigation
-        // For now, authentication state is not persisted across requests
-        if let Some(_new_auth_any) = new_auth {
-            // Would store session here once SessionStorage is working
+        // Save session if a new auth was provided
+        if let Some(new_auth_any) = new_auth {
+            // Try to downcast to TA first (same type as page auth)
+            if let Some(new_auth_typed) = new_auth_any.downcast_ref::<TA>() {
+                // Store in session - will be persisted as signed cookie
+                let _ = req.session().set(new_auth_typed.clone());
+                // Also store in extensions for immediate access
+                req.extensions.insert::<TA>(new_auth_typed.clone());
+            } else {
+                // If downcast to TA fails, try concrete auth types
+                // This allows login pages (with NoPageAuth) to return CookiePageAuth
+                if let Some(new_auth_cookie) = new_auth_any.downcast_ref::<crate::CookiePageAuth>() {
+                    let _ = req.session().set(new_auth_cookie.clone());
+                }
+            }
         }
 
         if !redirect_to.is_empty() {

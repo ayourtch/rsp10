@@ -44,6 +44,10 @@ pub use core::{
     RspUserAuth, RspState, extract_event, extract_json_state, amend_json_value,
 };
 
+// Common auth types
+pub mod common_auth;
+pub use common_auth::{NoPageAuth, CookiePageAuth};
+
 // Re-export HTTP abstraction
 pub use http_adapter::{HttpRequest, HttpResponse, HttpResult, HttpError};
 
@@ -298,10 +302,8 @@ mod iron_support {
             let my_secret = self.default_secret.clone().unwrap_or(rand_bytes());
             let mut ch = Chain::new(mount);
 
-            // TODO: Re-enable session storage once we figure out the correct API for ayourtch's forks
-            // The SessionStorage, Value, and related traits need further investigation
-            // For now, authentication works via the new_auth return value from event handlers
-            // ch.link_around(SessionStorage::new(SignedCookieBackend::new(my_secret)));
+            // Enable session storage with signed cookies
+            ch.link_around(SessionStorage::new(SignedCookieBackend::new(my_secret)));
             ch.link(State::<Rsp10GlobalData>::both(globals.clone()));
 
             let reuse_s = env::var("IRON_PORT_REUSE").unwrap_or_else(|_| "false".to_string());

@@ -60,7 +60,7 @@ impl RspState<String, MyPageAuth> for PageState {
             {
                 println!("Success! Login for: {}", &state.txtUsername);
                 // Create authenticated user and store in session
-                let auth = super::imports::CookiePageAuth::new(&state.txtUsername, None);
+                let auth = CookiePageAuth::new(&state.txtUsername, None);
                 action = rsp10::RspAction::RedirectTo(state.return_url.clone());
 
                 return RspEventHandlerResult {
