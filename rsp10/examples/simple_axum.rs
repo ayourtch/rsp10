@@ -26,9 +26,7 @@ mod axum_impl {
         env_logger::init();
 
         // Create shared session data
-        let session_data = Arc::new(tokio::sync::Mutex::new(rsp10::axum_adapter::SessionData {
-            auth_data: None,
-        }));
+        let session_data = Arc::new(tokio::sync::Mutex::new(rsp10::axum_adapter::SessionData::default()));
 
         // Build the router
         let app = create_router(session_data);

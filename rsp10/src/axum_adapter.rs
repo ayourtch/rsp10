@@ -30,9 +30,9 @@ use crate::core::RspKey;
 use crate::{maybe_compile_template};
 
 #[cfg(feature = "axum")]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct SessionData {
-    pub auth_data: Option<String>, // Serialized auth data
+    pub auth_json: Option<String>, // Serialized auth data as JSON
 }
 
 #[cfg(feature = "axum")]
@@ -163,6 +163,7 @@ impl AxumResponseBuilder {
 
 #[cfg(feature = "axum")]
 /// Generic Axum handler that works with any RspState implementation
+/// Uses spawn_blocking to run all page processing synchronously, avoiding Send/Sync issues
 pub async fn axum_handler_fn<S, T, TA>(
     args: (
         axum::extract::Query<HashMap<String, String>>,
@@ -172,167 +173,200 @@ pub async fn axum_handler_fn<S, T, TA>(
 ) -> axum::http::Response<axum::body::Body>
 where
     S: RspState<T, TA> + 'static,
-    T: RspKey + Send + Sync + 'static,
-    TA: RspUserAuth + Send + Sync + serde::Serialize + serde::de::DeserializeOwned + Default + 'static,
+    T: RspKey + 'static,
+    TA: RspUserAuth + serde::Serialize + serde::de::DeserializeOwned + Default + 'static,
 {
     let (query, form, session_state) = args;
-    // Extract the session data from AxumState
     let session = session_state.0.clone();
 
-    // Create adapter for request processing
-    let mut adapter = AxumRequestAdapter::new(query, form, session);
+    // Run all page processing in a blocking task (sync code, no Send/Sync issues)
+    let result = tokio::task::spawn_blocking(move || {
+        // Create adapter for request processing
+        let mut adapter = AxumRequestAdapter::new(query, form, session.clone());
 
-    // For now, use NoPageAuth as default authentication
-    // TODO: Implement proper session-based authentication
-    let auth = TA::from_request(&mut adapter).unwrap_or_else(|_| {
-        // Default to no authentication for now
-        TA::default()
-    });
+        // Load authenticated user from session (blocking lock)
+        let session_auth: Option<TA> = {
+            let session_data = session.blocking_lock();
+            if let Some(ref auth_json) = session_data.auth_json {
+                serde_json::from_str(auth_json).ok()
+            } else {
+                None
+            }
+        };
 
-    // Get form data and query parameters
-    let form_data = adapter.form_data().unwrap_or_default();
-    let query_params = adapter.query_params().unwrap_or_default();
+        let auth = if let Some(auth_from_session) = session_auth {
+            auth_from_session
+        } else {
+            let auth_res = TA::from_request(&mut adapter);
+            match auth_res {
+                Ok(a) => a,
+                Err(login_url) => {
+                    let resp = AxumResponseBuilder::redirect(&login_url);
+                    return resp.into_axum_response().into_response();
+                }
+            }
+        };
 
-    // Extract event
-    let event = extract_event(&form_data);
+        // Get form data and query parameters
+        let form_data = adapter.form_data().unwrap_or_default();
+        let query_params = adapter.query_params().unwrap_or_default();
 
-    // Get or reconstruct state
-    let mut maybe_state_val: Option<serde_json::Value> =
-        extract_json_state(&form_data, "state_json");
+        // Extract event
+        let event = extract_event(&form_data);
 
-    let maybe_state = if let Some(ref mut state_val) = maybe_state_val {
-        amend_json_value(state_val, &form_data);
-        serde_json::from_value(state_val.clone()).ok()
-    } else {
-        None
-    };
+        // Get or reconstruct state
+        let mut maybe_state_val: Option<serde_json::Value> =
+            extract_json_state(&form_data, "state_json");
 
-    let maybe_initial_state: Option<S> =
-        extract_json_state(&form_data, "initial_state_json");
+        let maybe_state = if let Some(ref mut state_val) = maybe_state_val {
+            amend_json_value(state_val, &form_data);
+            serde_json::from_value(state_val.clone()).ok()
+        } else {
+            None
+        };
 
-    // Get key
-    let mut maybe_key = S::get_key(&auth, &query_params, &maybe_state);
-    if maybe_key.is_none() {
-        maybe_key = S::get_key_from_args(&auth, &query_params);
-    }
-    let mut key = maybe_key.unwrap_or_default();
+        let maybe_initial_state: Option<S> =
+            extract_json_state(&form_data, "initial_state_json");
 
-    // Get current initial state
-    let mut curr_initial_state = S::get_state(&auth, key.clone());
-    let state_none = maybe_state.is_none();
-    let initial_state_none = maybe_initial_state.is_none();
-    let initial_state = maybe_initial_state.unwrap_or(curr_initial_state.clone());
-    let state = maybe_state.unwrap_or(initial_state.clone());
-
-    // Handle event
-    let ri = crate::core::RspInfo {
-        auth: &auth,
-        event: &event,
-        key: &key,
-        state,
-        state_none,
-        initial_state,
-        initial_state_none,
-        curr_initial_state: &curr_initial_state,
-    };
-
-    let r = S::event_handler(ri);
-    let mut initial_state = r.initial_state;
-    let mut state = r.state;
-    let action = r.action;
-    let new_auth = r.new_auth;
-
-    // Process action
-    let mut redirect_to = String::new();
-    match action {
-        RspAction::Render => {}
-        RspAction::ReloadState => {
-            curr_initial_state = S::get_state(&auth, key.clone());
-            initial_state = curr_initial_state.clone();
-            state = curr_initial_state.clone();
+        // Get key
+        let mut maybe_key = S::get_key(&auth, &query_params, &maybe_state);
+        if maybe_key.is_none() {
+            maybe_key = S::get_key_from_args(&auth, &query_params);
         }
-        RspAction::RedirectTo(target) => {
-            redirect_to = target;
+        let mut key = maybe_key.unwrap_or_default();
+
+        // Get current initial state
+        let mut curr_initial_state = S::get_state(&auth, key.clone());
+        let state_none = maybe_state.is_none();
+        let initial_state_none = maybe_initial_state.is_none();
+        let initial_state = maybe_initial_state.unwrap_or(curr_initial_state.clone());
+        let state = maybe_state.unwrap_or(initial_state.clone());
+
+        // Handle event
+        let ri = crate::core::RspInfo {
+            auth: &auth,
+            event: &event,
+            key: &key,
+            state,
+            state_none,
+            initial_state,
+            initial_state_none,
+            curr_initial_state: &curr_initial_state,
+        };
+
+        let r = S::event_handler(ri);
+        let mut initial_state = r.initial_state;
+        let mut state = r.state;
+        let action = r.action;
+        let new_auth = r.new_auth;
+
+        // Save auth to session (blocking lock)
+        if let Some(new_auth_any) = new_auth {
+            let auth_json_opt = if let Some(new_auth_typed) = new_auth_any.downcast_ref::<TA>() {
+                serde_json::to_string(new_auth_typed).ok()
+            } else if let Some(new_auth_cookie) = new_auth_any.downcast_ref::<crate::CookiePageAuth>() {
+                serde_json::to_string(new_auth_cookie).ok()
+            } else {
+                None
+            };
+
+            if let Some(auth_json) = auth_json_opt {
+                let mut session_data = session.blocking_lock();
+                session_data.auth_json = Some(auth_json);
+            }
         }
-        RspAction::SetKey(k) => {
-            key = k;
-            curr_initial_state = S::get_state(&auth, key.clone());
-            initial_state = curr_initial_state.clone();
-            state = curr_initial_state.clone();
+
+        // Process action
+        let mut redirect_to = String::new();
+        match action {
+            RspAction::Render => {}
+            RspAction::ReloadState => {
+                curr_initial_state = S::get_state(&auth, key.clone());
+                initial_state = curr_initial_state.clone();
+                state = curr_initial_state.clone();
+            }
+            RspAction::RedirectTo(target) => {
+                redirect_to = target;
+            }
+            RspAction::SetKey(k) => {
+                key = k;
+                curr_initial_state = S::get_state(&auth, key.clone());
+                initial_state = curr_initial_state.clone();
+                state = curr_initial_state.clone();
+            }
         }
-    }
 
-    // Save session if a new auth was provided (simplified for now)
-    if let Some(_new_auth_any) = new_auth {
-        // TODO: Implement proper session management for Axum
-    }
-
-    if !redirect_to.is_empty() {
-        let resp = AxumResponseBuilder::redirect(&redirect_to);
-        return resp.into_axum_response().into_response();
-    }
-
-    // Render template
-    let template_name = if S::get_template_name() != "" {
-        S::get_template_name()
-    } else {
-        S::get_template_name_auto()
-    };
-
-    let template = match maybe_compile_template(&template_name) {
-        Ok(t) => t,
-        Err(e) => {
-            let resp = AxumResponseBuilder::error(500, format!("Template error: {}", e));
+        if !redirect_to.is_empty() {
+            let resp = AxumResponseBuilder::redirect(&redirect_to);
             return resp.into_axum_response().into_response();
         }
-    };
 
-    // Fill data
-    let ri = crate::core::RspInfo {
-        auth: &auth,
-        event: &event,
-        key: &key,
-        state,
-        state_none: false,
-        initial_state,
-        initial_state_none: false,
-        curr_initial_state: &curr_initial_state,
-    };
+        // Render template
+        let template_name = if S::get_template_name() != "" {
+            S::get_template_name()
+        } else {
+            S::get_template_name_auto()
+        };
 
-    let r = S::fill_data(ri);
-    let initial_state = r.initial_state;
-    let state = r.state;
-    let data = r.data;
+        let template = match maybe_compile_template(&template_name) {
+            Ok(t) => t,
+            Err(e) => {
+                let resp = AxumResponseBuilder::error(500, format!("Template error: {}", e));
+                return resp.into_axum_response().into_response();
+            }
+        };
 
-    // Build template data
-    let data = data.insert("auth", &auth).unwrap();
-    let data = data.insert("state", &state).unwrap();
-    let data = data.insert("state_key", &key).unwrap();
-    let data = data.insert("initial_state", &initial_state).unwrap();
-    let data = data.insert("curr_initial_state", &curr_initial_state).unwrap();
-    let data = data
-        .insert("state_json", &serde_json::to_string(&state).unwrap())
-        .unwrap();
-    let data = data
-        .insert("state_key_json", &serde_json::to_string(&key).unwrap())
-        .unwrap();
-    let data = data
-        .insert("initial_state_json", &serde_json::to_string(&initial_state).unwrap())
-        .unwrap();
-    let data = data
-        .insert("curr_initial_state_json", &serde_json::to_string(&curr_initial_state).unwrap())
-        .unwrap();
+        // Fill data
+        let ri = crate::core::RspInfo {
+            auth: &auth,
+            event: &event,
+            key: &key,
+            state,
+            state_none: false,
+            initial_state,
+            initial_state_none: false,
+            curr_initial_state: &curr_initial_state,
+        };
 
-    // Render
-    let mut bytes = vec![];
-    let data_built = data.build();
-    template
-        .render_data(&mut bytes, &data_built)
-        .expect("Failed to render");
-    let payload = std::str::from_utf8(&bytes).unwrap();
+        let r = S::fill_data(ri);
+        let initial_state = r.initial_state;
+        let state = r.state;
+        let data = r.data;
 
-    let resp = AxumResponseBuilder::html(payload.to_string());
-    resp.into_axum_response().into_response()
+        // Build template data
+        let data = data.insert("auth", &auth).unwrap();
+        let data = data.insert("state", &state).unwrap();
+        let data = data.insert("state_key", &key).unwrap();
+        let data = data.insert("initial_state", &initial_state).unwrap();
+        let data = data.insert("curr_initial_state", &curr_initial_state).unwrap();
+        let data = data
+            .insert("state_json", &serde_json::to_string(&state).unwrap())
+            .unwrap();
+        let data = data
+            .insert("state_key_json", &serde_json::to_string(&key).unwrap())
+            .unwrap();
+        let data = data
+            .insert("initial_state_json", &serde_json::to_string(&initial_state).unwrap())
+            .unwrap();
+        let data = data
+            .insert("curr_initial_state_json", &serde_json::to_string(&curr_initial_state).unwrap())
+            .unwrap();
+
+        // Render
+        let mut bytes = vec![];
+        let data_built = data.build();
+        template
+            .render_data(&mut bytes, &data_built)
+            .expect("Failed to render");
+        let payload = std::str::from_utf8(&bytes).unwrap();
+
+        let resp = AxumResponseBuilder::html(payload.to_string());
+        resp.into_axum_response().into_response()
+    })
+    .await
+    .unwrap(); // Unwrap the JoinHandle
+
+    result
 }
 
 #[cfg(feature = "axum")]
@@ -344,8 +378,8 @@ pub fn make_axum_handler<S, T, TA>() -> impl Fn(
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = axum::http::Response<axum::body::Body>> + Send>>
 where
     S: RspState<T, TA> + 'static,
-    T: RspKey + Send + Sync + 'static,
-    TA: RspUserAuth + Send + Sync + serde::Serialize + serde::de::DeserializeOwned + Default + 'static,
+    T: RspKey + 'static,
+    TA: RspUserAuth + serde::Serialize + serde::de::DeserializeOwned + Default + 'static,
 {
     move |query, form, session_state| {
         Box::pin(axum_handler_fn::<S, T, TA>((query, form, session_state)))
