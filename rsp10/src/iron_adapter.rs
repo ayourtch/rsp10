@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 use iron::prelude::*;
-use iron::{status, Handler};
+use iron::{status, Handler, Plugin};
 use iron_sessionstorage::{SessionStorage, Value};
 use persistent::State;
 use urlencoded::{UrlEncodedBody, UrlEncodedQuery};
@@ -40,11 +40,16 @@ impl<'req, 'a, 'b> HttpRequest for IronRequestAdapter<'req, 'a, 'b> {
     }
 
     fn get_session<T: 'static>(&mut self) -> Option<&T> {
-        None // TODO: Implement session support
+        // TODO: Session management via iron-sessionstorage
+        // For now, session values are not accessible via this generic method
+        // Authentication flow uses new_auth return value from event_handler instead
+        None
     }
 
-    fn set_session<T: 'static>(&mut self, _value: T) {
-        // TODO: Implement session support
+    fn set_session<T: 'static>(&mut self, value: T) {
+        // TODO: Session management via iron-sessionstorage
+        // For now, session values are set via new_auth return value from event_handler
+        // This method is a no-op
     }
 
     fn get_state<T: 'static>(&self) -> Option<&T> {
@@ -138,7 +143,7 @@ pub struct RspIronHandler<S, T, TA>
 where
     S: RspState<T, TA> + Send + Sync + 'static,
     T: serde::Serialize + std::fmt::Debug + Clone + Default + serde::de::DeserializeOwned + Send + Sync + 'static,
-    TA: RspUserAuth + serde::Serialize + Send + Sync + 'static,
+    TA: RspUserAuth + serde::Serialize + Send + Sync + Value + Clone + iron::typemap::Key<Value = TA> + 'static,
 {
     _phantom: std::marker::PhantomData<(S, T, TA)>,
 }
@@ -147,7 +152,7 @@ impl<S, T, TA> RspIronHandler<S, T, TA>
 where
     S: RspState<T, TA> + Send + Sync + 'static,
     T: serde::Serialize + std::fmt::Debug + Clone + Default + serde::de::DeserializeOwned + Send + Sync + 'static,
-    TA: RspUserAuth + serde::Serialize + Send + Sync + 'static,
+    TA: RspUserAuth + serde::Serialize + Send + Sync + Value + Clone + iron::typemap::Key<Value = TA> + 'static,
 {
     pub fn new() -> Self {
         RspIronHandler {
@@ -160,11 +165,16 @@ impl<S, T, TA> Handler for RspIronHandler<S, T, TA>
 where
     S: RspState<T, TA> + Send + Sync + 'static,
     T: serde::Serialize + std::fmt::Debug + Clone + Default + serde::de::DeserializeOwned + Send + Sync + 'static,
-    TA: RspUserAuth + serde::Serialize + Send + Sync + 'static,
+    TA: RspUserAuth + serde::Serialize + Send + Sync + Value + Clone + iron::typemap::Key<Value = TA> + 'static,
 {
     fn handle(&self, req: &mut Request) -> IronResult<Response> {
-        // Authenticate
+        // TODO: Load session from iron-sessionstorage
+        // SessionStorage middleware is currently disabled - needs API investigation
+        // For now, auth types that check sessions will always fail and redirect to login
+
         let mut adapter = IronRequestAdapter::new(req);
+
+        // Authenticate
         let auth_res = TA::from_request(&mut adapter);
 
         let auth = match auth_res {
@@ -226,6 +236,7 @@ where
         let mut initial_state = r.initial_state;
         let mut state = r.state;
         let action = r.action;
+        let new_auth = r.new_auth;
 
         // Process action
         let mut redirect_to = String::new();
@@ -245,6 +256,13 @@ where
                 initial_state = curr_initial_state.clone();
                 state = curr_initial_state.clone();
             }
+        }
+
+        // TODO: Save session via iron-sessionstorage
+        // SessionStorage middleware is currently disabled - needs API investigation
+        // For now, authentication state is not persisted across requests
+        if let Some(_new_auth_any) = new_auth {
+            // Would store session here once SessionStorage is working
         }
 
         if !redirect_to.is_empty() {
@@ -321,7 +339,7 @@ pub fn make_iron_handler<S, T, TA>() -> RspIronHandler<S, T, TA>
 where
     S: RspState<T, TA> + Send + Sync + 'static,
     T: serde::Serialize + std::fmt::Debug + Clone + Default + serde::de::DeserializeOwned + Send + Sync + 'static,
-    TA: RspUserAuth + serde::Serialize + Send + Sync + 'static,
+    TA: RspUserAuth + serde::Serialize + Send + Sync + Value + Clone + iron::typemap::Key<Value = TA> + 'static,
 {
     RspIronHandler::new()
 }

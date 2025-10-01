@@ -19,6 +19,7 @@ impl RspState<(), MyPageAuth> for PageState {
             initial_state: ri.initial_state,
             state: ri.state,
             action: rsp10::RspAction::RedirectTo("/".to_string()),
+            new_auth: None,  // TODO: Clear session by setting empty/default auth
         }
     }
 }

@@ -33,17 +33,17 @@ serde_derive = "*"
 log = "*"
 env_logger = "*"
 
-# Iron-specific dependencies (optional)
-iron = { version = "*", optional = true }
-persistent = { version = "*", optional = true }
+# Iron-specific dependencies (optional) - using ayourtch forks for compatibility
+iron = { git = "https://github.com/ayourtch/iron.git", optional = true }
+persistent = { git = "https://github.com/ayourtch/persistent.git", optional = true }
 iron-sessionstorage = { git = "https://github.com/ayourtch/iron-sessionstorage.git", optional = true }
 socket2 = { version = "*", features = ["all"], optional = true }
 hyper = { version = "*", optional = true }
 rand = { version = "0.6", optional = true }
-urlencoded = { version = "*", optional = true }
-router = { version = "*", optional = true }
-mount = { version = "*", optional = true }
-staticfile = { version = "*", optional = true }
+urlencoded = { git = "https://github.com/ayourtch/urlencoded.git", optional = true }
+router = { git = "https://github.com/ayourtch/router.git", optional = true }
+mount = { git = "https://github.com/ayourtch/mount.git", optional = true }
+staticfile = { git = "https://github.com/ayourtch/staticfile.git", optional = true }
 
 # Database dependencies (kept for now, can be made optional later)
 diesel = { version = "1.1.*", features = ["postgres", "sqlite", "huge-tables", "chrono"] }

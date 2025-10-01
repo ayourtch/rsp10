@@ -55,6 +55,7 @@ impl RspState<String, MyPageAuth> for PageState {
             initial_state,
             state,
             action,
+            new_auth: None,
         }
     }
 }

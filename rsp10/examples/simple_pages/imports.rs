@@ -10,6 +10,23 @@ pub use std::collections::HashMap;
 
 #[derive(Default, Serialize, Deserialize, Debug, Clone)]
 pub struct NoPageAuth {}
+
+impl iron::typemap::Key for NoPageAuth {
+    type Value = NoPageAuth;
+}
+
+impl iron_sessionstorage::Value for NoPageAuth {
+    fn get_key() -> &'static str {
+        "rsp10_no_auth"
+    }
+    fn into_raw(self) -> String {
+        serde_json::to_string(&self).unwrap()
+    }
+    fn from_raw(value: String) -> Option<Self> {
+        serde_json::from_str(&value).ok()
+    }
+}
+
 impl rsp10::RspUserAuth for NoPageAuth {
     fn from_request<Req: rsp10::HttpRequest>(_req: &mut Req) -> Result<NoPageAuth, String> {
         Ok(NoPageAuth {})
@@ -27,6 +44,10 @@ pub struct CookiePageAuth {
     pub username: String,
     super_admin_until: Option<NaiveDateTime>,
     groups: HashMap<String, bool>,
+}
+
+impl iron::typemap::Key for CookiePageAuth {
+    type Value = CookiePageAuth;
 }
 
 #[allow(dead_code)]
@@ -69,9 +90,14 @@ impl iron_sessionstorage::Value for CookiePageAuth {
 }
 
 impl rsp10::RspUserAuth for CookiePageAuth {
-    fn from_request<Req: rsp10::HttpRequest>(_req: &mut Req) -> Result<CookiePageAuth, String> {
-        // TODO: Implement proper session-based authentication once SessionStorage is fixed
-        // For now, allow all requests with a default user
-        Ok(CookiePageAuth::new("user", None))
+    fn from_request<Req: rsp10::HttpRequest>(req: &mut Req) -> Result<CookiePageAuth, String> {
+        // Try to get authentication from session
+        if let Some(auth) = req.get_session::<CookiePageAuth>() {
+            // User is authenticated - return the session auth
+            Ok(auth.clone())
+        } else {
+            // No session found - redirect to login
+            Err("/login".to_string())
+        }
     }
 }

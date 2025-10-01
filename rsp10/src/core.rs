@@ -158,6 +158,7 @@ pub struct RspEventHandlerResult<R, T> {
     pub state: R,
     pub initial_state: R,
     pub action: RspAction<T>,
+    pub new_auth: Option<Box<dyn std::any::Any>>,  // Optional new auth to store in session
 }
 
 pub struct RspFillDataResult<R> {
@@ -206,6 +207,7 @@ where
             initial_state,
             state,
             action,
+            new_auth: None,
         }
     }
 

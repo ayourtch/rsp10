@@ -58,10 +58,17 @@ impl RspState<String, MyPageAuth> for PageState {
             if Some(state.txtUsername.clone()) == env_username
                 && Some(state.txtPassword.clone()) == env_password
             {
-                // TODO: Set session cookie once SessionStorage is fixed
-                // For now, just redirect on successful login
                 println!("Success! Login for: {}", &state.txtUsername);
+                // Create authenticated user and store in session
+                let auth = super::imports::CookiePageAuth::new(&state.txtUsername, None);
                 action = rsp10::RspAction::RedirectTo(state.return_url.clone());
+
+                return RspEventHandlerResult {
+                    initial_state,
+                    state,
+                    action,
+                    new_auth: Some(Box::new(auth)),
+                };
             } else {
                 println!("Login failure");
                 state.message = Some(format!("Login {} invalid", &state.txtUsername));
@@ -73,6 +80,7 @@ impl RspState<String, MyPageAuth> for PageState {
             initial_state,
             state,
             action,
+            new_auth: None,
         }
     }
 }

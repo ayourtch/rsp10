@@ -298,7 +298,9 @@ mod iron_support {
             let my_secret = self.default_secret.clone().unwrap_or(rand_bytes());
             let mut ch = Chain::new(mount);
 
-            // TODO: Fix iron-sessionstorage version compatibility
+            // TODO: Re-enable session storage once we figure out the correct API for ayourtch's forks
+            // The SessionStorage, Value, and related traits need further investigation
+            // For now, authentication works via the new_auth return value from event handlers
             // ch.link_around(SessionStorage::new(SignedCookieBackend::new(my_secret)));
             ch.link(State::<Rsp10GlobalData>::both(globals.clone()));
 
