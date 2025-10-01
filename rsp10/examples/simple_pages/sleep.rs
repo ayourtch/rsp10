@@ -11,8 +11,8 @@ pub struct PageState {
     message: Option<String>,
 }
 
-type MyPageAuth = NoPageAuth;
-type MyPageInfo<'a, 'b, 'c> = RspInfo<'a, 'b, 'c, dyn RspState<String, MyPageAuth>, String, MyPageAuth>;
+pub type MyPageAuth = NoPageAuth;
+// Type alias removed - RspInfo now has only one lifetime
 
 impl RspState<String, MyPageAuth> for PageState {
     fn get_key(
@@ -26,7 +26,7 @@ impl RspState<String, MyPageAuth> for PageState {
             None
         }
     }
-    fn get_state(req: &mut Request, auth: &MyPageAuth, key: String) -> PageState {
+    fn get_state(auth: &MyPageAuth, key: String) -> PageState {
         PageState {
             message: Some(key),
         }
@@ -37,7 +37,8 @@ impl RspState<String, MyPageAuth> for PageState {
         let num_sec = 60;
         // println!("Sleeping for {} seconds...", num_sec);
         //
-        rsp10::request_stop(ri.req);
+        // TODO: request_stop needs Iron-specific access
+        // rsp10::request_stop(ri.req);
 
         let mut modified = false;
         let mut gd = RspDataBuilder::new();

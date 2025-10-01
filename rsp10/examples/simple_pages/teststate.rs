@@ -8,6 +8,8 @@ pub struct KeyI32 {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+// TODO: Fix derive macro to work with concrete types
+// #[derive(rsp10::DeriveRspState)]
 pub struct PageState {
     message: String,
     dd_testing: i32,
@@ -16,7 +18,12 @@ pub struct PageState {
     ddMyDropdown: i32,
 }
 
-type MyPageAuth = CookiePageAuth;
+// Convention-based dropdown source for dd_testing
+pub fn get_dd_testing(value: i32) -> HtmlSelect<i32> {
+    dbh_get_dropdown(value)
+}
+
+pub type MyPageAuth = CookiePageAuth;
 
 pub fn dbh_get_dropdown(_switchtype: i32) -> HtmlSelect<i32> {
     let mut dd: HtmlSelect<i32> = Default::default();
@@ -49,7 +56,7 @@ impl RspState<KeyI32, MyPageAuth> for PageState {
             id: args.get("id").map_or(None, |x| x[0].parse::<i32>().ok()),
         })
     }
-    fn get_state(req: &mut Request, auth: &MyPageAuth, key: KeyI32) -> PageState {
+    fn get_state(auth: &MyPageAuth, key: KeyI32) -> PageState {
         println!("default state for PageState with key: {:?}", &key);
         PageState {
             dd_testing: -1,
@@ -59,9 +66,8 @@ impl RspState<KeyI32, MyPageAuth> for PageState {
             ..Default::default()
         }
     }
-    fn fill_data(ri: RspInfo<Self, KeyI32, MyPageAuth>) -> RspFillDataResult<Self> {
+    fn fill_data(mut ri: RspInfo<Self, KeyI32, MyPageAuth>) -> RspFillDataResult<Self> {
         let mut modified = false;
-        let mut ri = ri;
         let mut gd = RspDataBuilder::new();
         let real_key = ri.key.id.unwrap_or(-1);
         println!("{:?}", &ri.state);
@@ -72,18 +78,6 @@ impl RspState<KeyI32, MyPageAuth> for PageState {
         rsp10_text!(txt_text_message, ri => gd, modified);
         rsp10_check!(cbTestCheck, ri => gd, modified);
         rsp10_data!(modified => gd);
-        gd.insert_fn2("FooFunction", |x, render| {
-            let rendered_val = render(x);
-            let rendered_val = if &rendered_val == "3" {
-                render("".to_string()); // reset the flag
-                format!("unrendered because three")
-            } else {
-                format!("rendered: {}", rendered_val)
-            };
-            let res = format!("{} - {}", "{{state_key.id}}", rendered_val);
-            eprintln!("FooFunction after render: {:?}", &res);
-            res
-        });
 
         Self::fill_data_result(ri, gd)
     }

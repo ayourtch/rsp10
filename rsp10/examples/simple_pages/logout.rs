@@ -5,17 +5,20 @@ use super::imports::*;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PageState {}
 
-type MyPageAuth = NoPageAuth;
+pub type MyPageAuth = NoPageAuth;
 
 impl RspState<(), MyPageAuth> for PageState {
-    fn get_state(req: &mut Request, auth: &MyPageAuth, key: ()) -> PageState {
+    fn get_state(auth: &MyPageAuth, key: ()) -> PageState {
         PageState {}
     }
 
     fn event_handler(ri: RspInfo<Self, (), MyPageAuth>) -> RspEventHandlerResult<Self, ()> {
-        ri.req.session().clear().unwrap();
-        let mut res = Self::default_event_handler_result(ri);
-        res.action = rsp10::RspAction::RedirectTo(format!("/"));
-        res
+        // TODO: Clear session once SessionStorage is fixed
+        // For now, just redirect
+        RspEventHandlerResult {
+            initial_state: ri.initial_state,
+            state: ri.state,
+            action: rsp10::RspAction::RedirectTo("/".to_string()),
+        }
     }
 }

@@ -1,38 +1,61 @@
 [package]
 name = "rsp10"
 version = "0.1.0"
-
+edition = "2021"
 authors = ["Andrew Yourtchenko <ayourtch@gmail.com>"]
 
+[features]
+default = ["iron"]
+iron = [
+    "dep:iron",
+    "dep:iron-sessionstorage",
+    "dep:persistent",
+    "dep:router",
+    "dep:urlencoded",
+    "dep:mount",
+    "dep:staticfile",
+    "dep:socket2",
+    "dep:rand",
+    "dep:hyper",
+]
+
 [dependencies]
+# Core dependencies (always included)
+rsp10-derive = { path = "../rsp10-derive" }
 req2struct = { git = "https://github.com/ayourtch/req2struct.git" }
 # req2struct = { path = "../req2struct" }
 
-socket2 = { version = "*", features = ["all"] }
-iron = "*"
-persistent = "*"
-regex = "*"
-lazy_static = "*"
 mustache = { git = "https://github.com/ayourtch/rust-mustache" }
-iron-sessionstorage = { git = "https://github.com/ayourtch/iron-sessionstorage.git" }
-diesel = { version = "1.1.*", features = ["postgres", "sqlite", "huge-tables", "chrono"] }
 chrono = { version = "*", features = ["serde"] }
 serde_json = "*"
 serde = "*"
-hyper = "*"
 serde_derive = "*"
-arrayref = "*"
-base64 = "*"
-rand = "0.6"
-urlencoded = "*"
-router = "*"
-mount = "*"
-staticfile = "*"
-r2d2 = "*"
-r2d2-diesel = "*"
-num_cpus = "*"
 log = "*"
 env_logger = "*"
+
+# Iron-specific dependencies (optional)
+iron = { version = "*", optional = true }
+persistent = { version = "*", optional = true }
+iron-sessionstorage = { git = "https://github.com/ayourtch/iron-sessionstorage.git", optional = true }
+socket2 = { version = "*", features = ["all"], optional = true }
+hyper = { version = "*", optional = true }
+rand = { version = "0.6", optional = true }
+urlencoded = { version = "*", optional = true }
+router = { version = "*", optional = true }
+mount = { version = "*", optional = true }
+staticfile = { version = "*", optional = true }
+
+# Database dependencies (kept for now, can be made optional later)
+diesel = { version = "1.1.*", features = ["postgres", "sqlite", "huge-tables", "chrono"] }
+r2d2 = "*"
+r2d2-diesel = "*"
+
+# Utility dependencies
+regex = "*"
+lazy_static = "*"
+arrayref = "*"
+base64 = "*"
+num_cpus = "*"
 dotenv = "*"
 
 

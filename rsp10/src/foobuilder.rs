@@ -50,7 +50,7 @@ impl FooItemBuilder {
 
     fn insert_fn2<F>(&mut self, f: F)
     where
-        F: FnMut(String, &mut (FnMut(String) -> String)) -> String + Clone + Send + Sync + 'static,
+        F: FnMut(String, &mut (dyn FnMut(String) -> String)) -> String + Clone + Send + Sync + 'static,
     {
         let fn2 = RefCell::new(Box::new(f));
         self.add({
@@ -227,7 +227,7 @@ impl FooMapBuilder {
 
     pub fn insert_fn2<F>(&mut self, name: &str, data: F)
     where
-        F: FnMut(String, &mut (FnMut(String) -> String)) -> String + Clone + Send + Sync + 'static,
+        F: FnMut(String, &mut (dyn FnMut(String) -> String)) -> String + Clone + Send + Sync + 'static,
     {
         let builder = self.builders.entry(name.to_string());
         let mut builder = builder.or_insert_with(|| FooAnyBuilder::Item(FooItemBuilder::new(name)));

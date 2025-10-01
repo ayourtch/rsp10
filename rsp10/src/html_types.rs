@@ -5,7 +5,7 @@ use std::string::ToString;
 
 #[derive(Debug, Clone)]
 pub struct HtmlForm {
-    list: Vec<Rc<RefCell<HtmlInput>>>,
+    list: Vec<Rc<RefCell<dyn HtmlInput>>>,
 }
 
 impl HtmlForm {
