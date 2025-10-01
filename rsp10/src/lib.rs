@@ -124,6 +124,50 @@ macro_rules! get_page_template {
     };
 }
 
+// Unified routing macro - generates both Iron and Axum router functions
+#[macro_export]
+macro_rules! rsp_routes {
+    (
+        $(
+            $path:literal => $module:ident
+        ),* $(,)?
+    ) => {
+        // Iron router function
+        #[cfg(feature = "iron")]
+        pub fn get_router() -> router::Router {
+            use router::Router;
+            let mut r = Router::new();
+
+            $(
+                let handler = $module::web_handler().to_iron();
+                r.get($path, handler.clone(), format!("GET{}", $path).to_string());
+                r.post($path, handler, format!("POST{}", $path).to_string());
+            )*
+
+            r
+        }
+
+        // Axum router function
+        #[cfg(feature = "axum")]
+        pub fn get_axum_router(
+            session_data: std::sync::Arc<tokio::sync::Mutex<rsp10::axum_adapter::SessionData>>
+        ) -> axum::Router {
+            use axum::routing::{get, post};
+            use tower_http::services::ServeDir;
+
+            axum::Router::new()
+                $(
+                    .route($path, {
+                        let handler = $module::web_handler().to_axum();
+                        get(handler.clone()).post(handler)
+                    })
+                )*
+                .nest_service("/static", ServeDir::new("staticfiles/"))
+                .with_state(session_data)
+        }
+    };
+}
+
 // Macros for form elements - these work with the derive macro
 #[cfg(feature = "iron")]
 #[macro_export]
