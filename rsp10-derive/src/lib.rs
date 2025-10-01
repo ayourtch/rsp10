@@ -16,6 +16,9 @@ pub fn derive_rsp_state(input: TokenStream) -> TokenStream {
 
     let name = &input.ident;
 
+    // Extract key and auth types from attributes
+    let (key_type, auth_type) = extract_types_from_attrs(&input.attrs);
+
     // Parse the struct fields
     let fields = match &input.data {
         Data::Struct(data) => {
@@ -33,18 +36,36 @@ pub fn derive_rsp_state(input: TokenStream) -> TokenStream {
     // TODO: Extract these from attributes
     // For now, we'll leave them as associated types/generics
 
-    let expanded = quote! {
-        // The actual trait implementation will be added here
-        // For now, just provide a helper method
-        impl #name {
-            pub fn auto_fill_data<'a, T, TA>(
-                ri: rsp10::RspInfo<'a, Self, T, TA>
-            ) -> rsp10::RspFillDataResult<Self>
-            where
-                T: serde::Serialize + std::fmt::Debug + Clone + Default + serde::de::DeserializeOwned,
-                TA: rsp10::RspUserAuth + serde::Serialize,
-            {
-                #fill_data_impl
+    let expanded = if let (Some(key_ty), Some(auth_ty)) = (key_type, auth_type) {
+        // Generate with concrete types
+        quote! {
+            impl #name {
+                pub fn auto_fill_data_impl<'a>(
+                    mut ri: rsp10::RspInfo<'a, Self, #key_ty, #auth_ty>
+                ) -> rsp10::RspFillDataResult<Self> {
+                    let mut modified = false;
+                    let mut gd = rsp10::RspDataBuilder::new();
+                    #fill_data_impl
+                    Self::fill_data_result(ri, gd)
+                }
+            }
+        }
+    } else {
+        // Generate with generic types (fallback)
+        quote! {
+            impl #name {
+                pub fn auto_fill_data_impl<'a, T, TA>(
+                    mut ri: rsp10::RspInfo<'a, Self, T, TA>
+                ) -> rsp10::RspFillDataResult<Self>
+                where
+                    T: serde::Serialize + std::fmt::Debug + Clone + Default + serde::de::DeserializeOwned,
+                    TA: rsp10::RspUserAuth + serde::Serialize,
+                {
+                    let mut modified = false;
+                    let mut gd = rsp10::RspDataBuilder::new();
+                    #fill_data_impl
+                    Self::fill_data_result(ri, gd)
+                }
             }
         }
     };
@@ -79,13 +100,8 @@ fn generate_fill_data(fields: &syn::punctuated::Punctuated<Field, syn::token::Co
     }
 
     quote! {
-        let mut modified = false;
-        let mut gd = rsp10::RspDataBuilder::new();
-
         #(#field_generations)*
-
         rsp10_data!(modified => gd);
-        Self::fill_data_result(ri, gd)
     }
 }
 
@@ -126,6 +142,25 @@ fn generate_dropdown_field(field_name: &syn::Ident, field: &Field) -> proc_macro
     quote! {
         rsp10_select!(#field_name, #source_fn(ri.state.#field_name), ri => gd, modified);
     }
+}
+
+fn extract_types_from_attrs(attrs: &[syn::Attribute]) -> (Option<syn::Type>, Option<syn::Type>) {
+    let mut key_type = None;
+    let mut auth_type = None;
+
+    for attr in attrs {
+        if attr.path().is_ident("rsp_key") {
+            if let Ok(ty) = attr.parse_args::<syn::Type>() {
+                key_type = Some(ty);
+            }
+        } else if attr.path().is_ident("rsp_auth") {
+            if let Ok(ty) = attr.parse_args::<syn::Type>() {
+                auth_type = Some(ty);
+            }
+        }
+    }
+
+    (key_type, auth_type)
 }
 
 fn get_dropdown_source(field_name: &syn::Ident, field: &Field) -> proc_macro2::TokenStream {

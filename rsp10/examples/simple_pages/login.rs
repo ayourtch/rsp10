@@ -33,7 +33,7 @@ impl RspState<String, MyPageAuth> for PageState {
             return_url: key,
         }
     }
-    fn fill_data(mut ri: RspInfo<Self, String, MyPageAuth>) -> RspFillDataResult<Self> {
+    fn fill_data<'a>(mut ri: RspInfo<'a, Self, String, MyPageAuth>) -> RspFillDataResult<Self> {
         let mut modified = false;
         let mut gd = RspDataBuilder::new();
         let env_username = std::env::var("TEST_USERNAME").ok();
@@ -45,7 +45,7 @@ impl RspState<String, MyPageAuth> for PageState {
         Self::fill_data_result(ri, gd)
     }
 
-    fn event_handler(ri: RspInfo<Self, String, MyPageAuth>) -> RspEventHandlerResult<Self, String> {
+    fn event_handler<'a>(ri: RspInfo<'a, Self, String, MyPageAuth>) -> RspEventHandlerResult<Self, String> {
         let mut action = rsp10::RspAction::Render;
         let mut initial_state = ri.initial_state;
         let mut state = ri.state;

@@ -186,7 +186,7 @@ where
     fn get_state(auth: &TA, key: T) -> Self;
 
     /// Fill data result helper
-    fn fill_data_result(ri: RspInfo<Self, T, TA>, gd: crate::RspDataBuilder) -> RspFillDataResult<Self> {
+    fn fill_data_result<'a>(ri: RspInfo<'a, Self, T, TA>, gd: crate::RspDataBuilder) -> RspFillDataResult<Self> {
         let data = mustache::MapBuilder::new();
         let initial_state = ri.initial_state;
         let state = ri.state;
@@ -198,7 +198,7 @@ where
     }
 
     /// Event handler - pure function
-    fn event_handler(ri: RspInfo<Self, T, TA>) -> RspEventHandlerResult<Self, T> {
+    fn event_handler<'a>(ri: RspInfo<'a, Self, T, TA>) -> RspEventHandlerResult<Self, T> {
         let action = RspAction::Render;
         let initial_state = ri.initial_state;
         let state = ri.state;
@@ -234,7 +234,7 @@ where
     }
 
     /// Fill data for template rendering
-    fn fill_data(ri: RspInfo<Self, T, TA>) -> RspFillDataResult<Self> {
+    fn fill_data<'a>(ri: RspInfo<'a, Self, T, TA>) -> RspFillDataResult<Self> {
         let data = mustache::MapBuilder::new();
         let initial_state = ri.initial_state;
         let state = ri.state;
