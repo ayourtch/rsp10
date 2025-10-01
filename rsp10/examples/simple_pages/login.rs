@@ -6,7 +6,7 @@ pub struct LoginKey {
     pub return_url: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default, rsp10::DeriveRspState)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, RspStateDerive)]
 #[rsp_key(LoginKey)]
 #[rsp_auth(NoPageAuth)]
 pub struct PageState {

@@ -14,29 +14,22 @@ pub fn get_router() -> router::Router {
 
     let mut r = Router::new();
 
-    // Create handlers using the new Iron adapter
-    let login_handler = rsp10::make_iron_handler::<login::PageState, login::LoginKey, login::MyPageAuth>();
-    let logout_handler = rsp10::make_iron_handler::<logout::PageState, (), logout::MyPageAuth>();
-    let teststate_handler = rsp10::make_iron_handler::<teststate::PageState, teststate::KeyI32, teststate::MyPageAuth>();
-    let sleep_handler = rsp10::make_iron_handler::<sleep::PageState, sleep::SleepKey, sleep::MyPageAuth>();
+    // Register routes using auto-generated handler functions
+    r.get("/login", login::handler(), "GET/login".to_string());
+    r.post("/login", login::handler(), "POST/login".to_string());
 
-    // Register routes
-    r.get("/login", login_handler.clone(), "GET/login".to_string());
-    r.post("/login", login_handler, "POST/login".to_string());
+    r.get("/logout", logout::handler(), "GET/logout".to_string());
+    r.post("/logout", logout::handler(), "POST/logout".to_string());
 
-    r.get("/logout", logout_handler.clone(), "GET/logout".to_string());
-    r.post("/logout", logout_handler, "POST/logout".to_string());
+    r.get("/teststate", teststate::handler(), "GET/teststate".to_string());
+    r.post("/teststate", teststate::handler(), "POST/teststate".to_string());
 
-    r.get("/teststate", teststate_handler.clone(), "GET/teststate".to_string());
-    r.post("/teststate", teststate_handler.clone(), "POST/teststate".to_string());
-
-    r.get("/sleep", sleep_handler.clone(), "GET/sleep".to_string());
-    r.post("/sleep", sleep_handler, "POST/sleep".to_string());
+    r.get("/sleep", sleep::handler(), "GET/sleep".to_string());
+    r.post("/sleep", sleep::handler(), "POST/sleep".to_string());
 
     // Mount teststate on root as well
-    let root_handler = rsp10::make_iron_handler::<teststate::PageState, teststate::KeyI32, teststate::MyPageAuth>();
-    r.get("/", root_handler.clone(), "GET/".to_string());
-    r.post("/", root_handler, "POST/".to_string());
+    r.get("/", teststate::handler(), "GET/".to_string());
+    r.post("/", teststate::handler(), "POST/".to_string());
 
     r
 }

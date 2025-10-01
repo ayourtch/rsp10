@@ -1,6 +1,7 @@
 pub use rsp10::RspState;
 pub use rsp10::*;
 pub use rsp10_derive::RspKey;
+pub use rsp10_derive::RspState as RspStateDerive;
 
 pub use mustache::MapBuilder;
 pub use mustache::Template;

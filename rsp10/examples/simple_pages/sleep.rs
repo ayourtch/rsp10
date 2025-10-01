@@ -9,12 +9,12 @@ pub struct SleepKey {
     pub message: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, RspStateDerive)]
+#[rsp_key(SleepKey)]
+#[rsp_auth(NoPageAuth)]
 pub struct PageState {
     message: Option<String>,
 }
-
-pub type MyPageAuth = NoPageAuth;
 // Type alias removed - RspInfo now has only one lifetime
 
 impl RspState<SleepKey, MyPageAuth> for PageState {

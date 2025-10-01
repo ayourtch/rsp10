@@ -80,6 +80,10 @@ pub fn derive_rsp_state(input: TokenStream) -> TokenStream {
         quote! {
             pub type #auth_alias_ident = #auth_ty;
 
+            pub fn handler() -> impl iron::Handler {
+                rsp10::make_iron_handler::<#name, #key_ty, #auth_ty>()
+            }
+
             impl #name {
                 pub fn derive_auto_fill_data_impl<'a>(
                     mut ri: rsp10::RspInfo<'a, Self, #key_ty, #auth_ty>

@@ -2,10 +2,10 @@
 
 use super::imports::*;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, RspStateDerive)]
+#[rsp_key(())]
+#[rsp_auth(NoPageAuth)]
 pub struct PageState {}
-
-pub type MyPageAuth = NoPageAuth;
 
 impl RspState<(), MyPageAuth> for PageState {
     fn get_state(auth: &MyPageAuth, key: ()) -> PageState {

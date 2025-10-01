@@ -7,7 +7,7 @@ pub struct KeyI32 {
     pub id: Option<i32>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default, rsp10::DeriveRspState)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, RspStateDerive)]
 #[rsp_key(KeyI32)]
 #[rsp_auth(CookiePageAuth)]
 pub struct PageState {
