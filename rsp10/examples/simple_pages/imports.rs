@@ -3,6 +3,9 @@ pub use rsp10::*;
 pub use rsp10_derive::RspKey;
 pub use rsp10_derive::RspState as RspStateDerive;
 
+pub use serde_derive::Serialize;
+pub use serde_derive::Deserialize;
+
 pub use mustache::MapBuilder;
 pub use mustache::Template;
 pub use rsp10::RspAction;

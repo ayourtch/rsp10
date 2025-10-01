@@ -24,8 +24,8 @@ pub fn get_router() -> router::Router {
     r.get("/teststate", teststate::handler(), "GET/teststate".to_string());
     r.post("/teststate", teststate::handler(), "POST/teststate".to_string());
 
-    r.get("/sleep", sleep::handler(), "GET/sleep".to_string());
-    r.post("/sleep", sleep::handler(), "POST/sleep".to_string());
+    // r.get("/sleep", sleep::handler(), "GET/sleep".to_string());
+    // r.post("/sleep", sleep::handler(), "POST/sleep".to_string());
 
     // Mount teststate on root as well
     r.get("/", teststate::handler(), "GET/".to_string());
